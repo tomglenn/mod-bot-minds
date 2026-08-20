@@ -80,7 +80,6 @@ extern bool     g_EnableAmbientChatter;
 extern uint32_t g_AmbientChance;
 extern uint32_t g_AmbientMinIntervalSec;
 extern uint32_t g_AmbientMaxIntervalSec;
-extern float    g_AmbientPlayerDistance;
 
 // --------------------------------------------
 // Event chatter

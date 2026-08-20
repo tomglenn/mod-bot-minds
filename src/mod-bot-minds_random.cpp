@@ -37,6 +37,24 @@ namespace
         return ai && ai->IsBotAI();
     }
 
+    // A group-mate always has an audience: party chat reaches the whole group
+    // however far apart its members are.
+    bool RealPlayerInGroup(Player* bot)
+    {
+        Group* group = bot->GetGroup();
+        if (!group)
+            return false;
+
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+        {
+            Player* member = ref->GetSource();
+            if (member && member != bot && !IsBot(member))
+                return true;
+        }
+
+        return false;
+    }
+
     bool RealPlayerWithin(Player* bot, float distance)
     {
         for (auto const& pair : ObjectAccessor::GetPlayers())
@@ -190,10 +208,16 @@ void BotMindsAmbientChatter::OnUpdate(uint32 diff)
         if (urand(0, 99) >= g_AmbientChance)
             continue;
 
-        // Idle chatter is only worth paying for within earshot of a person.
-        // Guild membership deliberately does not qualify a bot here: that let
-        // every guilded bot in the world chatter into guild chat.
-        if (!RealPlayerWithin(bot, g_AmbientPlayerDistance))
+        // Idle chatter needs someone to hear it. A group-mate always qualifies,
+        // at any distance, the same way it can already answer party chat from
+        // across the map. Everyone else has to be inside say range, since that is
+        // what "can a person hear this" means for a line spoken out loud.
+        //
+        // Guild membership deliberately does not qualify a bot: a party is four
+        // bots, a guild can be hundreds, and that let every guilded bot in the
+        // world chatter into guild chat.
+        const bool groupAudience = RealPlayerInGroup(bot);
+        if (!groupAudience && !RealPlayerWithin(bot, g_SayDistance))
             continue;
 
         std::vector<std::string> observations = ObserveSurroundings(bot);
@@ -204,8 +228,10 @@ void BotMindsAmbientChatter::OnUpdate(uint32 diff)
         else
             situation = observations[urand(0, observations.size() - 1)];
 
-        // Grouped bots talk to the group, everyone else says it out loud.
-        ChatScope scope = bot->GetGroup() ? ChatScope::Party : ChatScope::Say;
+        // Talk to the group when a person is in it, otherwise say it out loud.
+        // Checking for a person rather than just a group matters: a bot in an
+        // all-bot party used to mutter into a party channel nobody was reading.
+        ChatScope scope = groupAudience ? ChatScope::Party : ChatScope::Say;
 
         TurnRequest request;
         request.bot     = bot;

@@ -85,7 +85,6 @@ bool     g_EnableAmbientChatter = true;
 uint32_t g_AmbientChance         = 25;
 uint32_t g_AmbientMinIntervalSec = 120;
 uint32_t g_AmbientMaxIntervalSec = 600;
-float    g_AmbientPlayerDistance = 60.0f;
 
 // --------------------------------------------
 // Event chatter
@@ -171,7 +170,6 @@ void LoadBotMindsConfig()
     g_AmbientChance         = sConfigMgr->GetOption<uint32_t>("BotMinds.Ambient.Chance", 25);
     g_AmbientMinIntervalSec = sConfigMgr->GetOption<uint32_t>("BotMinds.Ambient.MinIntervalSec", 120);
     g_AmbientMaxIntervalSec = sConfigMgr->GetOption<uint32_t>("BotMinds.Ambient.MaxIntervalSec", 600);
-    g_AmbientPlayerDistance = sConfigMgr->GetOption<float>("BotMinds.Ambient.PlayerDistance", 60.0f);
 
     g_EnableEventChatter       = sConfigMgr->GetOption<bool>("BotMinds.Events.Enable", true);
     g_EnableGuildChatter       = sConfigMgr->GetOption<bool>("BotMinds.Events.EnableGuild", true);

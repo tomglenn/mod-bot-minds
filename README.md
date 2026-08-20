@@ -91,7 +91,7 @@ If you get it working, or find it broken, an issue or a PR would be welcome.
 | `BotMinds.Provider` | `anthropic` | `anthropic` or `openai`. |
 | `BotMinds.Model` | `claude-haiku-4-5` | Any tool-calling model from that provider. |
 | `BotMinds.MaxReplyChars` | 200 | Hard limit on a spoken line. The model is told this number. |
-| `BotMinds.SayDistance` | 30.0 | Earshot for say and yell, in yards. |
+| `BotMinds.SayDistance` | 30.0 | Earshot in yards. Governs everything spoken out loud, including how near you must be for a bot to speak unprompted, and how far bots look around for something to remark on. |
 | `BotMinds.Route.HandleChannel` | 0 | General, Trade and the rest. Off because a busy channel burns calls. |
 | `BotMinds.ReplyChance.Say` | 70 | How likely an uninvolved bystander is to pick up an open remark. Party, Guild, Channel, Whisper and BotToBot have their own. |
 | `BotMinds.Attention.FloorWindowSec` | 60 | How long the bot you are talking to keeps the right to answer you. |
@@ -99,7 +99,6 @@ If you get it working, or find it broken, an issue or a PR would be welcome.
 | `BotMinds.Limits.PerBotCooldownSec` | 12 | Quiet time between one bot's unprompted lines. A direct answer ignores it. |
 | `BotMinds.Limits.MaxCallsPerMinute` | 60 | Ceiling on API calls in any one minute. The safety rail on your bill. |
 | `BotMinds.Ambient.Chance` | 25 | How talkative bots are when nothing is happening. |
-| `BotMinds.Ambient.PlayerDistance` | 60.0 | How close you have to be for idle chatter to happen at all. |
 | `BotMinds.Typing.Enable` | 0 | Hold a finished line back as though the bot were typing it. |
 | `BotMinds.DebugEnabled` | 0 | Log who was picked to answer, who stayed quiet, and why. |
 
@@ -120,7 +119,7 @@ All require SEC_ADMINISTRATOR and work from the server console too.
 
 A turn is roughly 1000 to 1400 input tokens (persona, world state, relationship, memories, recent chat, the tool schema) and 80 to 150 output. On Claude Haiku 4.5 that is about $0.002 per line a bot speaks. Ordinary play is a few calls a minute, so single-digit cents an hour.
 
-Calls only happen where a real player can hear the result: say and yell are limited to bots within `SayDistance`, ambient chatter needs someone within `Ambient.PlayerDistance`, and bots only answer each other where a person is watching. Party and guild chat have no distance limit, because those channels do not either.
+Calls only happen where a real player can hear the result. Anything spoken out loud, replies and unprompted remarks alike, needs someone within `SayDistance`, and bots only answer each other where a person is watching. Party and guild chat have no distance limit, because those channels do not either, so a group-mate on the far side of the map both answers you and chatters normally.
 
 `Limits.MaxCallsPerMinute` bounds the worst case no matter what happens in game. At the default of 60 that is 3600 calls an hour, or roughly $7, and you would have to work hard to get near it. `.botminds status` reports the running total, which beats guessing.
 

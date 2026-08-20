@@ -129,7 +129,14 @@ BotMinds.Attention.MaxBotsToPick = 2
 BotMinds.Attention.MaxBotChainDepth = 2
 
 # BotMinds.SayDistance
-#     Description: Range in yards for hearing say and yell.
+#     Description: Earshot in yards. This is the one distance that governs
+#                  everything spoken out loud: which bots can hear your say or
+#                  yell, whether a bot's own say has anyone to hear it, and how
+#                  near a person must be before a bot speaks unprompted.
+#
+#                  It doubles as how far a bot looks around for something to
+#                  remark on, so raising it also makes bots notice things further
+#                  away.
 #     Default:     30.0
 BotMinds.SayDistance = 30.0
 
@@ -200,11 +207,14 @@ BotMinds.Limits.DisableRepliesInCombat = 1
 # can hear them.
 ########################################
 
-BotMinds.Ambient.Enable          = 1
-BotMinds.Ambient.Chance          = 25
-BotMinds.Ambient.MinIntervalSec  = 120
-BotMinds.Ambient.MaxIntervalSec  = 600
-BotMinds.Ambient.PlayerDistance  = 60.0
+# Who a bot needs nearby before it speaks unprompted is BotMinds.SayDistance,
+# the same earshot that decides whether it can hear you. Bots in your party are
+# exempt and chatter from any distance, because party chat reaches you wherever
+# they are, exactly as it does when they answer you.
+BotMinds.Ambient.Enable         = 1
+BotMinds.Ambient.Chance         = 25
+BotMinds.Ambient.MinIntervalSec = 120
+BotMinds.Ambient.MaxIntervalSec = 600
 
 ########################################
 # Event reactions
