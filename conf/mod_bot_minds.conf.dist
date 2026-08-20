@@ -32,6 +32,11 @@ BotMinds.DebugShowFullPrompt = 0
 # BotMinds.Provider
 #     Description: "anthropic" or "openai". Both need tool calling, which the
 #                  memory system depends on.
+#
+#                  Anthropic is the tested path. The OpenAI provider is wired up
+#                  but has never had a call made through it; if you select it and
+#                  bots stay silent, the server log will carry the API's own
+#                  error text. Reports welcome.
 #     Default:     "anthropic"
 BotMinds.Provider = "anthropic"
 

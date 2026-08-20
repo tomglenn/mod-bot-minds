@@ -28,7 +28,7 @@ Playerbots that talk like people. Each bot has a persona, remembers what happene
 ## Requirements
 
 - AzerothCore (liyunfan1223 fork) with mod-playerbots.
-- An Anthropic or OpenAI API key. Both are driven with tool calling, which the memory system depends on.
+- An **Anthropic** API key. There is also an OpenAI provider, but it is untested (see [Providers](#providers)).
 - fmt (comes with AzerothCore), OpenSSL for HTTPS. nlohmann/json and cpp-httplib are bundled in this repo, so there is nothing to install for those.
 
 ## Installing
@@ -72,6 +72,14 @@ AiPlayerbot.GuildFeedback = 0
 AiPlayerbot.RandomBotSayWithoutMaster = 0
 ```
 
+## Providers
+
+**Anthropic is the tested path.** Everything in this repo was built and run against Claude Haiku 4.5, and that is what the defaults point at.
+
+**The OpenAI provider is untested.** It is wired up, it compiles, it sends the `bot_turn` tool to `/v1/chat/completions` and parses tool calls back out, and as far as the documented API goes the shape is right. But no call has ever been made through it. It sends `max_completion_tokens` and falls back to `max_tokens` if the API rejects that, and any non-200 response is logged with the API's own error text, so if bots go quiet the server log should tell you why. Treat a failure there as a bug worth reporting rather than a wall.
+
+If you get it working, or find it broken, an issue or a PR would be welcome.
+
 ## Configuration
 
 `conf/mod_bot_minds.conf.dist` is the annotated template with every setting and its default. The ones worth knowing:
@@ -79,7 +87,7 @@ AiPlayerbot.RandomBotSayWithoutMaster = 0
 | Setting | Default | What it does |
 | --- | --- | --- |
 | `BotMinds.ApiKey` | empty | Your API key. Empty means silence. |
-| `BotMinds.Provider` | `anthropic` | `anthropic` or `openai`. |
+| `BotMinds.Provider` | `anthropic` | `anthropic` (tested) or `openai` (untested). |
 | `BotMinds.Model` | `claude-haiku-4-5` | Any tool-calling model from that provider. |
 | `BotMinds.MaxReplyChars` | 200 | Hard limit on a spoken line. The model is told this number. |
 | `BotMinds.Attention.FloorWindowSec` | 60 | How long the bot you are talking to keeps the right to answer. |
@@ -122,9 +130,9 @@ Calls only happen where a real player can hear the result: say and yell are limi
 
 Three tables in the characters database, created by the module's SQL:
 
-- `mod_bot_minds_persona` — one row per bot.
-- `mod_bot_minds_memory` — what bots remember, with a subject and a salience.
-- `mod_bot_minds_relationship` — affinity per bot per person.
+- `mod_bot_minds_persona`: one row per bot.
+- `mod_bot_minds_memory`: what bots remember, with a subject and a salience.
+- `mod_bot_minds_relationship`: affinity per bot per person.
 
 ## Debugging
 

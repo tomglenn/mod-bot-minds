@@ -73,12 +73,19 @@ static json BotTurnToolAnthropic()
 
 static json BotTurnToolOpenAI()
 {
+    // Same schema, plus a closed object so the model cannot invent fields.
+    // `strict: true` is deliberately not set: OpenAI's strict mode requires every
+    // property to be listed in `required`, and reshaping the schema for a path
+    // nobody has been able to exercise would be guesswork.
+    json parameters = BotTurnSchema();
+    parameters["additionalProperties"] = false;
+
     return json{
         {"type", "function"},
         {"function", {
             {"name", "bot_turn"},
             {"description", "Record the bot's spoken reply along with any new memories and relationship changes."},
-            {"parameters", BotTurnSchema()}
+            {"parameters", std::move(parameters)}
         }}
     };
 }
@@ -315,6 +322,11 @@ public:
 
 // --------------------------------------------
 // OpenAIProvider: POST https://api.openai.com/v1/chat/completions
+//
+// UNTESTED. The shape matches OpenAI's documented API and the code compiles and
+// is wired to BotMinds.Provider = "openai", but no call has ever been made
+// through it. Treat any failure here as a bug to be found, not as a limit of
+// what the module can do.
 // --------------------------------------------
 class OpenAIProvider : public ILLMProvider
 {
@@ -322,17 +334,6 @@ public:
     LLMResult Complete(const std::string& systemPrompt, const std::string& userPrompt) override
     {
         LLMResult result;
-
-        json body = {
-            {"model", g_CloudModel},
-            {"max_tokens", g_CloudMaxTokens},
-            {"messages", json::array({
-                json{{"role", "system"}, {"content", systemPrompt}},
-                json{{"role", "user"}, {"content", userPrompt}}
-            })},
-            {"tools", json::array({ BotTurnToolOpenAI() })},
-            {"tool_choice", json{{"type", "function"}, {"function", {{"name", "bot_turn"}}}}}
-        };
 
         std::vector<std::pair<std::string, std::string>> headers = {
             {"Authorization", "Bearer " + g_CloudApiKey},
@@ -342,8 +343,20 @@ public:
         static BotMindsHttpClient httpClient;
         httpClient.SetTimeout(static_cast<int>(g_CloudTimeoutSec));
 
-        std::string responseBody = httpClient.PostSecure(
-            "api.openai.com", "/v1/chat/completions", body.dump(), headers);
+        // Current models take max_completion_tokens; older ones only understand
+        // max_tokens and reject the new name. Try the current spelling, and on a
+        // rejection (not a network failure) try once with the old one.
+        int status = 0;
+        std::string responseBody = Post(httpClient, headers, systemPrompt, userPrompt,
+                                       "max_completion_tokens", &status);
+
+        if (responseBody.empty() && status >= 400 && status < 500)
+        {
+            LOG_INFO("server.loading",
+                     "[BotMinds] OpenAI rejected max_completion_tokens (status {}); retrying with max_tokens.",
+                     status);
+            responseBody = Post(httpClient, headers, systemPrompt, userPrompt, "max_tokens", &status);
+        }
 
         if (responseBody.empty())
             return result;
@@ -403,6 +416,30 @@ public:
         NormalizeResult(result);
         return result;
     }
+
+private:
+    // One request, with the token limit under the given parameter name.
+    static std::string Post(BotMindsHttpClient& httpClient,
+                            const std::vector<std::pair<std::string, std::string>>& headers,
+                            const std::string& systemPrompt,
+                            const std::string& userPrompt,
+                            const char* tokenLimitParam,
+                            int* status)
+    {
+        json body = {
+            {"model", g_CloudModel},
+            {"messages", json::array({
+                json{{"role", "system"}, {"content", systemPrompt}},
+                json{{"role", "user"}, {"content", userPrompt}}
+            })},
+            {"tools", json::array({ BotTurnToolOpenAI() })},
+            {"tool_choice", json{{"type", "function"}, {"function", {{"name", "bot_turn"}}}}}
+        };
+
+        body[tokenLimitParam] = g_CloudMaxTokens;
+
+        return httpClient.PostSecure("api.openai.com", "/v1/chat/completions", body.dump(), headers, status);
+    }
 };
 
 // --------------------------------------------
@@ -429,7 +466,9 @@ void InitLLMProviders()
     else if (g_CloudProvider == "openai")
     {
         s_provider = std::make_unique<OpenAIProvider>();
-        LOG_INFO("server.loading", "[BotMinds] Provider: OpenAI (model: {}).", g_CloudModel);
+        LOG_INFO("server.loading",
+                 "[BotMinds] Provider: OpenAI (model: {}). This path is untested; if bots stay "
+                 "silent, check the server log for the API's response.", g_CloudModel);
     }
     else
     {

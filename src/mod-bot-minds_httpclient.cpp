@@ -17,8 +17,12 @@ BotMindsHttpClient::~BotMindsHttpClient()
 std::string BotMindsHttpClient::PostSecure(const std::string& host,
                                            const std::string& path,
                                            const std::string& jsonData,
-                                           const std::vector<std::pair<std::string, std::string>>& headers)
+                                           const std::vector<std::pair<std::string, std::string>>& headers,
+                                           int* outStatus)
 {
+    if (outStatus)
+        *outStatus = 0;
+
     try
     {
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
@@ -43,11 +47,16 @@ std::string BotMindsHttpClient::PostSecure(const std::string& host,
             return "";
         }
 
+        if (outStatus)
+            *outStatus = response->status;
+
         if (response->status != 200)
         {
-            LOG_ERROR("server.loading", "[BotMinds] {}{} returned status {}", host, path, response->status);
-            if (g_DebugEnabled)
-                LOG_INFO("server.loading", "[BotMinds] Response body: {}", response->body);
+            // The body carries the provider's actual complaint (bad key, unknown
+            // model, rejected parameter), so it is worth logging outright rather
+            // than hiding behind the debug flag.
+            LOG_ERROR("server.loading", "[BotMinds] {}{} returned status {}: {}",
+                      host, path, response->status, response->body);
             return "";
         }
 
