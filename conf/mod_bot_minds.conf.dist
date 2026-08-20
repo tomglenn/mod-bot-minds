@@ -1,0 +1,252 @@
+[worldserver]
+
+########################################
+# mod-bot-minds
+#
+# Playerbots that talk like people: one persona per bot, a memory that survives
+# restarts, and one pipeline for every line they say (replies, idle chatter and
+# reactions to what happens around them).
+#
+# Needs an API key. Bots stay silent without one.
+########################################
+
+# BotMinds.Enable
+#     Description: Master switch for the module.
+#     Default:     1
+BotMinds.Enable = 1
+
+# BotMinds.DebugEnabled
+#     Description: Log who was picked to answer, who stayed quiet, and why.
+#     Default:     0
+BotMinds.DebugEnabled = 0
+
+# BotMinds.DebugShowFullPrompt
+#     Description: Also log the full prompt sent for each line. Very noisy.
+#     Default:     0
+BotMinds.DebugShowFullPrompt = 0
+
+########################################
+# Provider
+########################################
+
+# BotMinds.Provider
+#     Description: "anthropic" or "openai". Both need tool calling, which the
+#                  memory system depends on.
+#     Default:     "anthropic"
+BotMinds.Provider = "anthropic"
+
+# BotMinds.ApiKey
+#     Description: API key for the provider. Empty keeps every bot silent.
+#     Default:     ""
+BotMinds.ApiKey = ""
+
+# BotMinds.Model
+#     Default:     "claude-haiku-4-5"
+BotMinds.Model = "claude-haiku-4-5"
+
+# BotMinds.MaxTokens
+#     Default:     512
+BotMinds.MaxTokens = 512
+
+# BotMinds.TimeoutSec
+#     Default:     30
+BotMinds.TimeoutSec = 30
+
+# BotMinds.MaxReplyChars
+#     Description: Hard limit on a spoken line. The model is told this number and
+#                  anything longer is trimmed back to a sentence or word boundary.
+#     Default:     200
+BotMinds.MaxReplyChars = 200
+
+########################################
+# Which channels bots listen to
+########################################
+
+BotMinds.Route.HandleWhispers = 1
+BotMinds.Route.HandleSay      = 1
+BotMinds.Route.HandleParty    = 1
+BotMinds.Route.HandleGuild    = 1
+
+# BotMinds.Route.HandleChannel
+#     Description: General, Trade and other numbered channels. Off by default;
+#                  a busy channel burns calls quickly.
+#     Default:     0
+BotMinds.Route.HandleChannel = 0
+
+########################################
+# Who answers
+#
+# Reply chance is applied once, here. A named bot always answers, and so does
+# whoever spoke last (see FloorWindowSec), so these only decide how likely an
+# uninvolved bystander is to pick up an open remark.
+########################################
+
+BotMinds.ReplyChance.Whisper  = 100
+BotMinds.ReplyChance.Say      = 70
+BotMinds.ReplyChance.Party    = 85
+BotMinds.ReplyChance.Guild    = 50
+BotMinds.ReplyChance.Channel  = 35
+
+# BotMinds.ReplyChance.BotToBot
+#     Description: Chance a bot picks up on another bot's line. Only ever happens
+#                  where a real player can see it.
+#     Default:     12
+BotMinds.ReplyChance.BotToBot = 12
+
+# BotMinds.Attention.FloorWindowSec
+#     Description: How long after speaking a bot keeps the right to answer you.
+#                  Inside this window your next message goes to that bot alone,
+#                  unless you name someone else or address the room ("hey folks",
+#                  "does anyone...").
+#     Default:     60
+BotMinds.Attention.FloorWindowSec = 60
+
+# BotMinds.Attention.InterjectChance
+#     Description: Chance a bystander chips in while someone else holds the floor.
+#     Default:     12
+BotMinds.Attention.InterjectChance = 12
+
+# BotMinds.Attention.SmallGroupSize
+#     Description: With this many bots listening or fewer, one of them always
+#                  answers you. Stops a two-man party ignoring you.
+#     Default:     3
+BotMinds.Attention.SmallGroupSize = 3
+
+# BotMinds.Attention.MaxBotsToPick
+#     Description: Most bots that may answer a single line.
+#     Default:     2
+BotMinds.Attention.MaxBotsToPick = 2
+
+# BotMinds.Attention.MaxBotChainDepth
+#     Description: How far a bot-to-bot exchange may run after something a human
+#                  said. 0 stops bots answering each other entirely.
+#     Default:     2
+BotMinds.Attention.MaxBotChainDepth = 2
+
+# BotMinds.SayDistance
+#     Description: Range in yards for hearing say and yell.
+#     Default:     30.0
+BotMinds.SayDistance = 30.0
+
+########################################
+# Conversation transcript
+#
+# The recent chat every bot in a scope can see. This is what lets a bot know your
+# "yeah good thanks, you?" was aimed at whoever just asked.
+########################################
+
+BotMinds.Transcript.Lines    = 8
+BotMinds.Transcript.MaxChars = 700
+
+# BotMinds.Transcript.TtlSec
+#     Description: Forget a conversation after this long with nothing said.
+#     Default:     900
+BotMinds.Transcript.TtlSec = 900
+
+########################################
+# Memory
+#
+# Written to mod_bot_minds_memory as it happens, so a hard restart loses nothing.
+# Inspect it in game with `.botminds memory <bot>`.
+########################################
+
+BotMinds.Memory.RecentCount    = 6
+BotMinds.Memory.RelevantCount  = 4
+BotMinds.Memory.MaxPerSubject  = 30
+BotMinds.Memory.MaxPromptChars = 1200
+
+########################################
+# Rate limits
+########################################
+
+# BotMinds.Limits.ProximityRadius
+#     Description: How close a bot must be to answer overheard chat. Direct
+#                  answers to someone who addressed it ignore this.
+#     Default:     40.0
+BotMinds.Limits.ProximityRadius = 40.0
+
+# BotMinds.Limits.PerBotCooldownSec
+#     Description: Quiet time between a bot's unprompted lines. A direct answer
+#                  ignores it, so a bot never goes mute mid-conversation.
+#     Default:     12
+BotMinds.Limits.PerBotCooldownSec = 12
+
+BotMinds.Limits.MaxConcurrentCalls      = 3
+BotMinds.Limits.HardCapCallsPerInterval = 60
+BotMinds.Limits.HardCapIntervalSec      = 60
+
+# BotMinds.Limits.DisableRepliesInCombat
+#     Default:     1
+BotMinds.Limits.DisableRepliesInCombat = 1
+
+########################################
+# Ambient chatter
+#
+# Unprompted remarks about whatever is around the bot, only where a real player
+# can hear them.
+########################################
+
+BotMinds.Ambient.Enable          = 1
+BotMinds.Ambient.Chance          = 25
+BotMinds.Ambient.MinIntervalSec  = 120
+BotMinds.Ambient.MaxIntervalSec  = 600
+BotMinds.Ambient.PlayerDistance  = 60.0
+
+########################################
+# Event reactions
+#
+# Chances are per event, rolled once before any bot is picked.
+########################################
+
+BotMinds.Events.Enable      = 1
+BotMinds.Events.EnableGuild = 1
+BotMinds.Events.Distance    = 40.0
+
+# BotMinds.Events.MaxBots
+#     Description: Most bots that may react to one event.
+#     Default:     1
+BotMinds.Events.MaxBots = 1
+
+BotMinds.Events.Chance.Kill    = 1
+BotMinds.Events.Chance.PvPKill = 15
+BotMinds.Events.Chance.Death   = 25
+BotMinds.Events.Chance.Quest   = 20
+BotMinds.Events.Chance.Spell   = 2
+BotMinds.Events.Chance.Duel    = 25
+BotMinds.Events.Chance.LevelUp = 60
+
+# BotMinds.Events.Chance.Loot
+#     Description: Only rare quality and above is ever considered.
+#     Default:     15
+BotMinds.Events.Chance.Loot = 15
+
+BotMinds.Events.Chance.GuildEpicGear = 80
+BotMinds.Events.Chance.GuildRareGear = 30
+BotMinds.Events.Chance.GuildLevelUp  = 50
+BotMinds.Events.Chance.GuildMember   = 60
+
+########################################
+# Presentation
+########################################
+
+# BotMinds.Typing.Enable
+#     Description: Hold a finished line back as if the bot were typing it.
+#     Default:     0
+BotMinds.Typing.Enable         = 0
+BotMinds.Typing.BaseDelayMs    = 1000
+BotMinds.Typing.DelayPerCharMs = 25
+
+########################################
+# Housekeeping
+########################################
+
+# BotMinds.SaveIntervalMinutes
+#     Description: How often personas and relationships are written back.
+#                  Memories are written immediately and ignore this.
+#     Default:     10
+BotMinds.SaveIntervalMinutes = 10
+
+# BotMinds.BlacklistCommands
+#     Description: Chat that is a playerbot command or addon traffic rather than
+#                  conversation. Matched as a prefix on the message.
+BotMinds.BlacklistCommands = autogear,talents,reset botAI,summon,release,revive,leave,attack,follow,flee,stay,runaway,grind,disperse,give leader,spells,cast ,quests,accept,drop,talk,reset,ss ,trainer,rti,rtsc,do ,ll ,e ,ue ,nc ,open,destroy,s ,b ,bank,gb ,u ,co ,ELVUI_VERSIONCHK,Asked,DPSMate_,LibGroupTalents,BLT,oRA3,Skada,HealBot,hbComms,questie,pfQuest,DBMv4-Ver,BWVQ3,add,remove,reset ai,report,state,help,log,stats,tank,offtank,healer,cc ,damage,boost,passive,defensive,aggressive,guard,free,assist,pet,stance,formation,rpg,emote,cheer,applaud,drink,eat,dance,attackers,reset instances,home,zone,who ,pos ,tele,loot,quest,travel,teleport,homebind,unfollow,invite,uninvite,join,leader,ready,save,update,reset talents,gear,trade,mail,ah ,ahscan,ahbid,ahbuy,ahsell,ahcancel,bag,repair,vendor,train,reset spells,learn,unlearn,uncast,use ,move,go ,look,stop,turn,face,wait,party,followleader,stayleader,moveleader,info,distance,debug,reset path,reset state,reset all,reset dungeon,reset raid,zone info,LHC40,RECOUNT,GTFO_v,Altoholic,DS_,DataStore

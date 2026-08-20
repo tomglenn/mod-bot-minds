@@ -1,0 +1,69 @@
+# Compiled Object files
+*.o
+*.obj
+
+# Compiled Binary files
+*.exe
+*.out
+*.app
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Static Libraries
+*.lib
+*.a
+
+# Dynamic Libraries
+*.dll
+*.so
+*.dylib
+
+# Debug files
+*.dSYM/
+*.stackdump
+
+# Build directories
+/build/
+/bin/
+/Debug/
+/Release/
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Qt-specific files
+*.moc
+*.qrc
+*.qmlc
+*.pro.user
+*.autosave
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Backup files
+*~
+*.bak
+*.swp
+*.tmp
+
+# Logs
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Live config copies. Only the .dist template belongs in the repo, since a real
+# mod_bot_minds.conf holds an API key.
+conf/*.conf
+!conf/*.conf.dist
