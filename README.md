@@ -82,19 +82,26 @@ If you get it working, or find it broken, an issue or a PR would be welcome.
 
 ## Configuration
 
-`conf/mod_bot_minds.conf.dist` is the annotated template with every setting and its default. The ones worth knowing:
+`conf/mod_bot_minds.conf.dist` is the template, with every setting annotated and set to its default. There is more in there than is listed below (memory sizing, transcript length, per-event reaction chances, the remaining reply chances and channel routing toggles), but these are the dials most worth reaching for:
 
 | Setting | Default | What it does |
 | --- | --- | --- |
+| `BotMinds.Enable` | 1 | Master switch for the module. |
 | `BotMinds.ApiKey` | empty | Your API key. Empty means silence. |
-| `BotMinds.Provider` | `anthropic` | `anthropic` (tested) or `openai` (untested). |
+| `BotMinds.Provider` | `anthropic` | `anthropic` or `openai`. |
 | `BotMinds.Model` | `claude-haiku-4-5` | Any tool-calling model from that provider. |
 | `BotMinds.MaxReplyChars` | 200 | Hard limit on a spoken line. The model is told this number. |
-| `BotMinds.Attention.FloorWindowSec` | 60 | How long the bot you are talking to keeps the right to answer. |
+| `BotMinds.SayDistance` | 30.0 | Earshot for say and yell, in yards. |
+| `BotMinds.Route.HandleChannel` | 0 | General, Trade and the rest. Off because a busy channel burns calls. |
+| `BotMinds.ReplyChance.Say` | 70 | How likely an uninvolved bystander is to pick up an open remark. Party, Guild, Channel, Whisper and BotToBot have their own. |
+| `BotMinds.Attention.FloorWindowSec` | 60 | How long the bot you are talking to keeps the right to answer you. |
 | `BotMinds.Attention.MaxBotsToPick` | 2 | Most bots that may answer one line. |
-| `BotMinds.Route.HandleChannel` | 0 | General and Trade. Off because a busy channel burns calls. |
+| `BotMinds.Limits.PerBotCooldownSec` | 12 | Quiet time between one bot's unprompted lines. A direct answer ignores it. |
+| `BotMinds.Limits.HardCapCallsPerInterval` | 60 | Hard ceiling on API calls per interval. |
 | `BotMinds.Ambient.Chance` | 25 | How talkative bots are when nothing is happening. |
-| `BotMinds.Limits.HardCapCallsPerInterval` | 60 | Hard ceiling on calls per interval. |
+| `BotMinds.Ambient.PlayerDistance` | 60.0 | How close you have to be for idle chatter to happen at all. |
+| `BotMinds.Typing.Enable` | 0 | Hold a finished line back as though the bot were typing it. |
+| `BotMinds.DebugEnabled` | 0 | Log who was picked to answer, who stayed quiet, and why. |
 
 ## Commands
 
