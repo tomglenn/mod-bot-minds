@@ -13,17 +13,17 @@ Playerbots that talk like people. Each bot has a persona, remembers what happene
 
 ## What it does
 
-**One voice.** Every line a bot speaks, whether it is answering you, muttering about its bags, or reacting to a level-up, is built by the same prompt builder and sent to the same model. There is one place that decides how bots sound, so a bot cannot drift between a casual player voice and a heroic one.
+**Talk to a bot and the right one answers.** Say a bot's name and that bot replies. Ask the room something and a couple of them chime in. Follow up without naming anyone and the answer comes from the bot you were already talking to, not from three strangers who happened to overhear. In a small party, someone always answers you.
 
-**A conversational floor.** Name a bot and it answers. Address the room ("hey folks", "does anyone need this?") and a couple of bots may pick it up. Say anything else and the reply belongs to the bot you were already talking to, so "yeah good thanks, you?" goes back to whoever asked rather than to three bystanders. In a small group somebody always answers you. Bots that were not addressed are offered the turn and can decline it.
+**They sound like players, not heroes.** Bots chat the way people in a game chat: short, casual, off the cuff. No monologues about destiny, no narrating their own actions, no sliding into stagey roleplay halfway through a conversation.
 
-**Memory that survives restarts.** What a bot learns is written to the database as it happens, not batched, so killing the server does not erase the last ten minutes. Recent and high-salience memories about whoever it is talking to go into every prompt. Read it back with `.botminds memory <bot>`.
+**They remember.** Tell a bot you're working on Brotherhood of Thieves, ask about it an hour later or after a server restart, and it knows. Memories are saved the moment they happen, so nothing is lost when the server goes down. `.botminds memory <bot>` shows you what a bot is carrying.
 
-**Personas.** One row per bot: traits and a manner of speaking, generated deterministically from class, race and GUID so a bot is the same character every session. Write a `backstory` into the table by hand and that gets used too.
+**Every bot is a different person.** Each one has its own temperament and way of speaking, and keeps it for good. The blunt one stays blunt, the cheerful one stays cheerful. `.botminds persona <bot>`.
 
-**Relationships.** Each exchange can nudge how a bot feels about you, which is stored and fed back into later prompts. `.botminds feelings <bot>` shows the ledger.
+**They form opinions of you.** Help a bot out and it warms to you. Be rude and it cools off, and it remembers why. `.botminds feelings <bot>` shows where you stand.
 
-**Ambient chatter and event reactions.** Bots comment on their surroundings and on things that happen (kills, loot, deaths, quests, duels, level-ups, guild changes), only within earshot of a real player, and always through the same pipeline, so those lines carry the persona and land in memory as well.
+**They talk when you don't.** Bots grumble about full bags, mention what's around them, and react when someone dies, levels up or wins a duel. Only ever within earshot, so the world feels lived-in without running up a bill for conversations nobody hears.
 
 ## Requirements
 
