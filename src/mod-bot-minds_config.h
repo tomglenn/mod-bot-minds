@@ -70,8 +70,7 @@ extern uint32_t g_MaxMemoryPromptChars;
 extern float    g_ProximityRadius;
 extern uint32_t g_PerBotCooldownSec;
 extern uint32_t g_MaxConcurrentCalls;
-extern uint32_t g_HardCapCallsPerInterval;
-extern uint32_t g_HardCapIntervalSec;
+extern uint32_t g_MaxCallsPerMinute;
 extern bool     g_DisableRepliesInCombat;
 
 // --------------------------------------------

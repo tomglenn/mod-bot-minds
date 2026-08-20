@@ -97,7 +97,7 @@ If you get it working, or find it broken, an issue or a PR would be welcome.
 | `BotMinds.Attention.FloorWindowSec` | 60 | How long the bot you are talking to keeps the right to answer you. |
 | `BotMinds.Attention.MaxBotsToPick` | 2 | Most bots that may answer one line. |
 | `BotMinds.Limits.PerBotCooldownSec` | 12 | Quiet time between one bot's unprompted lines. A direct answer ignores it. |
-| `BotMinds.Limits.HardCapCallsPerInterval` | 60 | Hard ceiling on API calls per interval. |
+| `BotMinds.Limits.MaxCallsPerMinute` | 60 | Ceiling on API calls in any one minute. The safety rail on your bill. |
 | `BotMinds.Ambient.Chance` | 25 | How talkative bots are when nothing is happening. |
 | `BotMinds.Ambient.PlayerDistance` | 60.0 | How close you have to be for idle chatter to happen at all. |
 | `BotMinds.Typing.Enable` | 0 | Hold a finished line back as though the bot were typing it. |
@@ -122,7 +122,7 @@ A turn is roughly 1000 to 1400 input tokens (persona, world state, relationship,
 
 Calls only happen where a real player can hear the result: say and yell are limited to bots within `SayDistance`, ambient chatter needs someone within `Ambient.PlayerDistance`, and bots only answer each other where a person is watching. Party and guild chat have no distance limit, because those channels do not either.
 
-`Limits.HardCapCallsPerInterval` is a hard ceiling, so the worst case is bounded no matter what happens in game. `.botminds status` reports the running total, which beats guessing.
+`Limits.MaxCallsPerMinute` bounds the worst case no matter what happens in game. At the default of 60 that is 3600 calls an hour, or roughly $7, and you would have to work hard to get near it. `.botminds status` reports the running total, which beats guessing.
 
 ## How a line gets spoken
 

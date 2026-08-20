@@ -176,9 +176,18 @@ BotMinds.Limits.ProximityRadius = 40.0
 #     Default:     12
 BotMinds.Limits.PerBotCooldownSec = 12
 
-BotMinds.Limits.MaxConcurrentCalls      = 3
-BotMinds.Limits.HardCapCallsPerInterval = 60
-BotMinds.Limits.HardCapIntervalSec      = 60
+# BotMinds.Limits.MaxConcurrentCalls
+#     Description: How many API calls may be in flight at once. Anything asked to
+#                  speak while the slots are full stays quiet.
+#     Default:     3
+BotMinds.Limits.MaxConcurrentCalls = 3
+
+# BotMinds.Limits.MaxCallsPerMinute
+#     Description: Ceiling on API calls in any one minute, counting every line
+#                  every bot speaks. The safety rail on your bill: whatever
+#                  happens in game, spend cannot exceed this. 0 disables it.
+#     Default:     60
+BotMinds.Limits.MaxCallsPerMinute = 60
 
 # BotMinds.Limits.DisableRepliesInCombat
 #     Default:     1

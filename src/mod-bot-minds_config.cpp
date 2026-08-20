@@ -75,8 +75,7 @@ uint32_t g_MaxMemoryPromptChars  = 1200;
 float    g_ProximityRadius         = 40.0f;
 uint32_t g_PerBotCooldownSec       = 12;
 uint32_t g_MaxConcurrentCalls      = 3;
-uint32_t g_HardCapCallsPerInterval = 60;
-uint32_t g_HardCapIntervalSec      = 60;
+uint32_t g_MaxCallsPerMinute       = 60;
 bool     g_DisableRepliesInCombat  = true;
 
 // --------------------------------------------
@@ -165,8 +164,7 @@ void LoadBotMindsConfig()
     g_ProximityRadius         = sConfigMgr->GetOption<float>("BotMinds.Limits.ProximityRadius", 40.0f);
     g_PerBotCooldownSec       = sConfigMgr->GetOption<uint32_t>("BotMinds.Limits.PerBotCooldownSec", 12);
     g_MaxConcurrentCalls      = sConfigMgr->GetOption<uint32_t>("BotMinds.Limits.MaxConcurrentCalls", 3);
-    g_HardCapCallsPerInterval = sConfigMgr->GetOption<uint32_t>("BotMinds.Limits.HardCapCallsPerInterval", 60);
-    g_HardCapIntervalSec      = sConfigMgr->GetOption<uint32_t>("BotMinds.Limits.HardCapIntervalSec", 60);
+    g_MaxCallsPerMinute       = sConfigMgr->GetOption<uint32_t>("BotMinds.Limits.MaxCallsPerMinute", 60);
     g_DisableRepliesInCombat  = sConfigMgr->GetOption<bool>("BotMinds.Limits.DisableRepliesInCombat", true);
 
     g_EnableAmbientChatter  = sConfigMgr->GetOption<bool>("BotMinds.Ambient.Enable", true);

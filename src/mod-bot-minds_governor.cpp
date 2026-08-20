@@ -15,9 +15,9 @@
 // Governor state
 // --------------------------------------------
 static std::atomic<int>      g_inFlight{0};
-static std::atomic<uint32_t> g_callsThisInterval{0};
+static std::atomic<uint32_t> g_callsThisMinute{0};
 static std::atomic<uint32_t> g_callsTotal{0};
-static uint32_t              g_intervalElapsedMs = 0;
+static uint32_t              g_minuteElapsedMs = 0;
 
 static std::mutex                             g_lastCallMutex;
 static std::unordered_map<uint64_t, uint32_t> g_lastCallSec; // bot guid -> last call (epoch seconds)
@@ -47,11 +47,11 @@ namespace BotMindsGovernor
         if (!IsBot(bot))
             return false;
 
-        if (g_HardCapCallsPerInterval > 0 && g_callsThisInterval.load() >= g_HardCapCallsPerInterval)
+        if (g_MaxCallsPerMinute > 0 && g_callsThisMinute.load() >= g_MaxCallsPerMinute)
         {
             if (g_DebugEnabled)
-                LOG_INFO("server.loading", "[BotMinds] {} silent: hard cap of {} calls per {}s reached",
-                         bot->GetName(), g_HardCapCallsPerInterval, g_HardCapIntervalSec);
+                LOG_INFO("server.loading", "[BotMinds] {} silent: this minute's cap of {} calls is used up",
+                         bot->GetName(), g_MaxCallsPerMinute);
             return false;
         }
 
@@ -83,7 +83,7 @@ namespace BotMindsGovernor
             g_lastCallSec[botGuid] = now;
         }
         ++g_inFlight;
-        ++g_callsThisInterval;
+        ++g_callsThisMinute;
         ++g_callsTotal;
     }
 
@@ -104,13 +104,12 @@ namespace BotMindsGovernor
 
     void Tick(uint32_t diffMs)
     {
-        g_intervalElapsedMs += diffMs;
+        g_minuteElapsedMs += diffMs;
 
-        uint32_t windowMs = g_HardCapIntervalSec * 1000;
-        if (windowMs != 0 && g_intervalElapsedMs >= windowMs)
+        if (g_minuteElapsedMs >= 60000)
         {
-            g_callsThisInterval.store(0);
-            g_intervalElapsedMs = 0;
+            g_callsThisMinute.store(0);
+            g_minuteElapsedMs = 0;
         }
     }
 }

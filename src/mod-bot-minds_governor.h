@@ -8,7 +8,7 @@
 class Player;
 
 // --------------------------------------------
-// Resource limits on LLM calls: a usable provider, the rolling hard cap, the
+// Resource limits on LLM calls: a usable provider, the per-minute ceiling, the
 // concurrency slots, the per-bot cooldown and proximity.
 //
 // Whether a bot *wants* to speak is decided in _attention.*; the governor only
@@ -31,7 +31,7 @@ namespace BotMindsGovernor
     // with OnSubmit.
     void OnComplete();
 
-    // Call from a WorldScript OnUpdate: advances the rolling hard-cap window.
+    // Call from a WorldScript OnUpdate: rolls the per-minute counter over.
     void Tick(uint32_t diffMs);
 
     // Calls submitted since startup, and how many are in flight right now, for

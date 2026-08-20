@@ -85,9 +85,9 @@ bool BotMindsConfigCommand::HandleStatus(ChatHandler* handler)
         handler->SendSysMessage("BotMinds: no usable provider, bots are silent. Check BotMinds.ApiKey.");
 
     handler->SendSysMessage(fmt::format("BotMinds: reply limit {} chars, up to {} bots per line, "
-                                        "{}s per-bot cooldown, {} calls per {}s.",
+                                        "{}s per-bot cooldown, at most {} calls a minute.",
                                         g_MaxReplyChars, g_MaxBotsToPick, g_PerBotCooldownSec,
-                                        g_HardCapCallsPerInterval, g_HardCapIntervalSec));
+                                        g_MaxCallsPerMinute));
 
     handler->SendSysMessage(fmt::format("BotMinds: {} API calls since startup, {} in flight.",
                                         BotMindsGovernor::CallsSinceStartup(),
