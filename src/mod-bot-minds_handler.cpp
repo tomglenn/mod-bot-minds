@@ -7,9 +7,11 @@
 #include "Log.h"
 #include "Player.h"
 #include "PlayerbotAI.h"
+#include "PlayerbotAIConfig.h"
 #include "PlayerbotMgr.h"
 #include "SharedDefines.h"
 
+#include <algorithm>
 #include <cctype>
 #include <string>
 
@@ -53,11 +55,57 @@ namespace
         return (end == std::string::npos) ? "" : text.substr(0, end + 1);
     }
 
+    // Words that only turn up when somebody is talking, not issuing an order.
+    // "drop 12345" is a command; "drop me a heal" is a request, and the blacklist
+    // used to swallow it because it starts with a command word.
+    bool LooksConversational(const std::string& lowered)
+    {
+        static const char* markers[] = {
+            " me", " my ", " you", " your", " us ", " our ", " please", " thanks", " cheers",
+            "can ", "could ", "would ", "will you", "got any", "any chance", "?"
+        };
+
+        for (const char* marker : markers)
+        {
+            if (lowered.find(marker) != std::string::npos)
+                return true;
+        }
+
+        return false;
+    }
+
+    // Addon chatter that leaks into a normal channel: one word, no spaces, with an
+    // underscore or a digit in it. "ELVUI_VERSIONCHK", "BWVQ3", "GTFO_v".
+    bool LooksLikeAddonTraffic(const std::string& text)
+    {
+        if (text.size() < 4 || text.find(' ') != std::string::npos)
+            return false;
+
+        return text.find('_') != std::string::npos
+            || std::any_of(text.begin(), text.end(),
+                           [](unsigned char c) { return std::isdigit(c) != 0; });
+    }
+
     // Playerbot commands typed in chat ("follow", "stay", addon traffic) are
     // instructions, not conversation.
     bool IsBotCommand(const std::string& msg)
     {
         const std::string trimmed = RightTrim(msg);
+
+        // When playerbots is configured with a command prefix it ignores everything
+        // else, so anything unprefixed is ours to interpret, including a bare
+        // "follow". Deferring to its own setting beats maintaining a word list that
+        // disagrees with it.
+        const std::string& prefix = sPlayerbotAIConfig.commandPrefix;
+        if (!prefix.empty())
+        {
+            return trimmed.compare(0, prefix.size(), prefix) == 0
+                || LooksLikeAddonTraffic(trimmed);
+        }
+
+        std::string lowered = trimmed;
+        for (char& c : lowered)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 
         for (const std::string& command : g_BlacklistCommands)
         {
@@ -65,8 +113,13 @@ namespace
                 continue;
             if (trimmed.compare(0, command.size(), command) != 0)
                 continue;
-            if (trimmed.size() == command.size()
-                || !std::isalnum(static_cast<unsigned char>(trimmed[command.size()])))
+            if (trimmed.size() != command.size()
+                && std::isalnum(static_cast<unsigned char>(trimmed[command.size()])))
+                continue;
+
+            // An exact command is always a command. Anything longer is only one if
+            // it does not read like somebody talking.
+            if (trimmed.size() == command.size() || !LooksConversational(lowered))
                 return true;
         }
 
