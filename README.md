@@ -23,7 +23,9 @@ Playerbots that talk like people. Each bot has a persona, remembers what happene
 
 **They form opinions of you.** Help a bot out and it warms to you. Be rude and it cools off, and it remembers why. `.botminds feelings <bot>` shows where you stand.
 
-**They talk when you don't.** Bots grumble about full bags, mention what's around them, and react when someone dies, levels up or wins a duel. Only ever within earshot, so the world feels lived-in without running up a bill for conversations nobody hears.
+**They do things, not just say them.** Ask a priest for a buff and you get Power Word: Fortitude, not a promise. Ask a bot who likes you for a few coppers and it opens a trade, or puts it in the post if you are not grouped. Ask one of your own party bots to come with you, in whatever words you like, and it comes. A bot is told what it can genuinely do before it answers, so it never offers something it cannot deliver, and it turns you down in its own voice when the answer is no.
+
+**They talk when you don't.** Bots grumble about full bags, mention what's around them, and react when someone dies, levels up or wins a duel. Now and then one will do you a good turn unasked, like buffing you as you run past. Only ever within earshot, so the world feels lived-in without running up a bill for conversations nobody hears.
 
 ## Requirements
 
@@ -59,6 +61,19 @@ Start the server. The module's SQL creates its tables on import.
 
 > [!TIP]
 > Keep your real `mod_bot_minds.conf` out of version control. This repo's `.gitignore` already excludes `conf/*.conf` while keeping the `.dist` template, so the file you edit will not be committed by accident.
+
+Consider giving playerbots a command prefix too, in `playerbots.conf`:
+
+```
+AiPlayerbot.CommandPrefix = "!"
+```
+
+Without one, playerbots prefix-matches ordinary speech against its command names, so
+"do you have any spare silver?" is read as the `do` command and "follow me" fires `follow` with
+"me" discarded. With a prefix it only acts on `!follow`, `!stay` and so on, leaving plain English
+to this module. The module reads that setting: when a prefix is configured, anything unprefixed
+is treated as conversation, including a bare "follow", which it will turn into the follow action
+for a bot you have grouped with.
 
 Finally, turn off playerbots' own canned chatter so it does not talk over the module. In `playerbots.conf`:
 
@@ -99,6 +114,9 @@ If you get it working, or find it broken, an issue or a PR would be welcome.
 | `BotMinds.Limits.PerBotCooldownSec` | 12 | Quiet time between one bot's unprompted lines. A direct answer ignores it. |
 | `BotMinds.Limits.MaxCallsPerMinute` | 60 | Ceiling on API calls in any one minute. The safety rail on your bill. |
 | `BotMinds.Ambient.Chance` | 25 | How talkative bots are when nothing is happening. |
+| `BotMinds.Actions.Gold.MaxCopper` | 5000 | Hard ceiling on a single gift, in copper. 0 stops bots giving money. |
+| `BotMinds.Actions.Gold.MinAffinity` | 0.25 | How much a bot must like you before it parts with coin. |
+| `BotMinds.Actions.Unprompted.Chance` | 20 | How often idle chatter becomes a favour instead of a remark. |
 | `BotMinds.Typing.Enable` | 0 | Hold a finished line back as though the bot were typing it. |
 | `BotMinds.DebugEnabled` | 0 | Log who was picked to answer, who stayed quiet, and why. |
 
@@ -114,6 +132,23 @@ All require SEC_ADMINISTRATOR and work from the server console too.
 | `.botminds memory <bot>` | The 25 newest memories, read from the database |
 | `.botminds feelings <bot>` | Affinity towards everyone it has an opinion about |
 | `.botminds forget <bot>` | Delete that bot's memories and relationships |
+
+## What bots will do for you
+
+| Ask for | Who obliges | How |
+| --- | --- | --- |
+| A buff | Any bot of a class that has one, in earshot | Cast on you directly. It will not offer a buff you already have, cannot afford, or does not know. |
+| A heal | Any healing class, out of combat | Only offered when you are actually hurt. |
+| Gold | A bot that likes you enough, once per day each | Trade window if you are grouped and standing close, otherwise it arrives by post. |
+| Follow, wait | Bots you have grouped with | Routed through playerbots' own command handler, so the permissions are exactly the same as typing the command. |
+
+Two things are deliberately absent. Bots will not hand over items, and they will not invite you
+to a group: playerbots disbands any group led by a random bot, so the invite would undo itself.
+
+The gold cap is a design number rather than a fraction of the bot's purse. Bots are created
+holding hundreds of gold, so "whatever it can spare" would hand a low level character a fortune.
+The default is at most 50 silver, scaled by the giving bot's level and by how well it knows you,
+once per bot per day, and the bot remembers having done it so you cannot talk it round.
 
 ## Cost
 

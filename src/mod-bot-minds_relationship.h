@@ -13,6 +13,7 @@ struct Relationship
     float       affinity = 0.0f;
     std::string reason;
     uint32_t    interactionCount = 0;
+    uint32_t    lastGiftAt = 0;    // epoch seconds of the last gift, 0 == never
 };
 
 // Return the relationship a bot has toward another actor. If none exists,
@@ -23,6 +24,11 @@ Relationship GetRelationship(uint64_t botGuid, uint64_t otherGuid);
 // set the reason, increment the interaction count, and upsert the row.
 void ApplyRelationshipDelta(uint64_t botGuid, uint64_t otherGuid, bool otherIsBot,
                             float affinityChange, const std::string& reason);
+
+// Note that a bot has just given this person something, so the gift cooldown
+// survives a restart. Stored on the relationship because that is what it is: a
+// fact about the two of them.
+void RecordGift(uint64_t botGuid, uint64_t otherGuid);
 
 // Load all relationships from the database into the in-memory cache.
 void LoadRelationshipsFromDB();

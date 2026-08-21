@@ -55,6 +55,28 @@ static const json& BotTurnSchema()
                     {"reason", {{"type", "string"}}}
                 }},
                 {"required", json::array({"affinity_change", "reason"})}
+            }},
+            {"action", {
+                {"type", "object"},
+                {"description", "Something the bot actually does, alongside saying its line. Fill this "
+                                "in whenever the list of what you can do covers what was asked: agreeing "
+                                "in words without setting it means nothing happens in the game. Leave it "
+                                "out only when you genuinely cannot do the thing."},
+                {"properties", {
+                    {"kind", {
+                        {"type", "string"},
+                        {"enum", json::array({"none", "buff", "heal", "give_gold", "follow", "stay"})}
+                    }},
+                    {"spell", {
+                        {"type", "string"},
+                        {"description", "For buff or heal: the exact name from the list you were offered."}
+                    }},
+                    {"copper", {
+                        {"type", "integer"},
+                        {"description", "For give_gold: the amount in copper, never more than you were told you would spare."}
+                    }}
+                }},
+                {"required", json::array({"kind"})}
             }}
         }},
         {"required", json::array({"should_reply", "reply"})}
@@ -221,6 +243,9 @@ static void FillFromToolInput(LLMResult& result, const json& input)
 
     if (input.contains("relationship_delta") && input["relationship_delta"].is_object())
         result.relationship_delta = input["relationship_delta"];
+
+    if (input.contains("action") && input["action"].is_object())
+        result.action = input["action"];
 }
 
 // --------------------------------------------
@@ -312,6 +337,7 @@ public:
             result.reply = fallbackText;
             result.memory_additions = json::array();
             result.relationship_delta = nullptr;
+            result.action = nullptr;
         }
 
         result.ok = filledFromTool || !result.reply.empty();
@@ -409,6 +435,7 @@ public:
                 result.reply = content;
                 result.memory_additions = json::array();
                 result.relationship_delta = nullptr;
+                result.action = nullptr;
             }
         }
 

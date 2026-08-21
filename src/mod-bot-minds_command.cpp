@@ -1,4 +1,5 @@
 #include "mod-bot-minds_command.h"
+#include "mod-bot-minds_action.h"
 #include "mod-bot-minds_config.h"
 #include "mod-bot-minds_governor.h"
 #include "mod-bot-minds_llmclient.h"
@@ -92,6 +93,10 @@ bool BotMindsConfigCommand::HandleStatus(ChatHandler* handler)
     handler->SendSysMessage(fmt::format("BotMinds: {} API calls since startup, {} in flight.",
                                         BotMindsGovernor::CallsSinceStartup(),
                                         BotMindsGovernor::CallsInFlight()));
+
+    handler->SendSysMessage(fmt::format("BotMinds: actions {}, {} performed, {} given up on.",
+                                        g_ActionsEnable ? "enabled" : "disabled",
+                                        ActionsPerformed(), ActionsFailed()));
 
     QueryResult counts = CharacterDatabase.Query(
         "SELECT (SELECT COUNT(*) FROM mod_bot_minds_memory), "

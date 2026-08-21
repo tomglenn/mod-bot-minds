@@ -14,6 +14,6 @@
 // `forced` marks a line the bot owes the person who addressed it: it skips the
 // per-bot cooldown and the proximity check. Returns true if a call was
 // submitted, false if the bot stays silent.
-bool RequestBotTurn(const TurnRequest& request, bool forced);
+bool RequestBotTurn(TurnRequest& request, bool forced);
 
 #endif // MOD_BOT_MINDS_SPEAK_H

@@ -1,4 +1,5 @@
 #include "mod-bot-minds_random.h"
+#include "mod-bot-minds_action.h"
 #include "mod-bot-minds_config.h"
 #include "mod-bot-minds_speak.h"
 #include "mod-bot-minds_transcript.h"
@@ -30,6 +31,36 @@
 namespace
 {
     std::unordered_map<uint64_t, time_t> g_NextAmbientTime;
+
+    // One favour per person per cooldown, so an unprompted buff stays a nice
+    // surprise rather than a fixture.
+    std::unordered_map<uint64_t, time_t> g_LastFavourAt;
+
+    // The nearest real player this bot could actually do something for, or null.
+    Player* FavourCandidate(Player* bot, time_t now)
+    {
+        if (!g_ActionsEnable || urand(0, 99) >= g_UnpromptedChance)
+            return nullptr;
+
+        for (auto const& pair : ObjectAccessor::GetPlayers())
+        {
+            Player* candidate = pair.second;
+            if (!candidate || !candidate->IsInWorld())
+                continue;
+            if (PlayerbotsMgr::instance().GetPlayerbotAI(candidate))
+                continue;
+            if (candidate->GetMapId() != bot->GetMapId() || bot->GetDistance(candidate) > g_SayDistance)
+                continue;
+
+            auto last = g_LastFavourAt.find(candidate->GetGUID().GetRawValue());
+            if (last != g_LastFavourAt.end() && now < last->second + (time_t)g_UnpromptedCooldownSec)
+                continue;
+
+            return candidate;
+        }
+
+        return nullptr;
+    }
 
     bool IsBot(Player* player)
     {
@@ -220,13 +251,36 @@ void BotMindsAmbientChatter::OnUpdate(uint32 diff)
         if (!groupAudience && !RealPlayerWithin(bot, g_SayDistance))
             continue;
 
-        std::vector<std::string> observations = ObserveSurroundings(bot);
+        // Sometimes, rather than remarking on the scenery, do somebody a good turn.
+        // Naming the person as the turn's counterpart is what puts the capability
+        // list in the prompt, so the bot can pick a real buff and say why.
+        Player* favourFor = FavourCandidate(bot, now);
+
+        // A warrior has nothing to offer. Without this check it would still be told
+        // to do someone a good turn, and would promise a buff it does not have.
+        if (favourFor)
+        {
+            ActionMenu offer = BuildActionMenu(bot, favourFor, /*unprompted=*/true);
+            if (offer.NothingToVolunteer())
+                favourFor = nullptr;
+        }
 
         std::string situation;
-        if (observations.empty())
-            situation = "nothing much is happening";
+
+        if (favourFor)
+        {
+            situation = SafeFormat("{} is nearby and you could do them a good turn unasked", favourFor->GetName());
+        }
         else
-            situation = observations[urand(0, observations.size() - 1)];
+        {
+            std::vector<std::string> observations = ObserveSurroundings(bot);
+            if (observations.empty())
+                situation = "nothing much is happening";
+            else
+                situation = observations[urand(0, observations.size() - 1)];
+
+            situation = SafeFormat("{}. Take this angle: {}.", situation, PickAngle());
+        }
 
         // Talk to the group when a person is in it, otherwise say it out loud.
         // Checking for a person rather than just a group matters: a bot in an
@@ -235,10 +289,12 @@ void BotMindsAmbientChatter::OnUpdate(uint32 diff)
 
         TurnRequest request;
         request.bot     = bot;
+        request.other   = favourFor;
         request.kind    = TurnKind::Ambient;
         request.key     = MakeScope(scope, bot);
-        request.trigger = SafeFormat("{}. Take this angle: {}.", situation, PickAngle());
+        request.trigger = situation;
 
-        RequestBotTurn(request, /*forced=*/false);
+        if (RequestBotTurn(request, /*forced=*/false) && favourFor)
+            g_LastFavourAt[favourFor->GetGUID().GetRawValue()] = now;
     }
 }

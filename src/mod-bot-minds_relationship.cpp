@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <ctime>
 
 // Config globals (defined elsewhere by the integrator).
 extern bool g_DebugEnabled;
@@ -28,6 +29,7 @@ namespace
         float       affinity = 0.0f;
         std::string reason;
         uint32_t    interactionCount = 0;
+        uint32_t    lastGiftAt = 0;
     };
 
     struct PairHash
@@ -57,6 +59,7 @@ Relationship GetRelationship(uint64_t botGuid, uint64_t otherGuid)
     r.affinity         = it->second.affinity;
     r.reason           = it->second.reason;
     r.interactionCount = it->second.interactionCount;
+    r.lastGiftAt       = it->second.lastGiftAt;
     return r;
 }
 
@@ -93,6 +96,24 @@ void ApplyRelationshipDelta(uint64_t botGuid, uint64_t otherGuid, bool otherIsBo
     }
 }
 
+void RecordGift(uint64_t botGuid, uint64_t otherGuid)
+{
+    std::lock_guard<std::mutex> lock(g_RelationshipMutex);
+
+    Key key(botGuid, otherGuid);
+    auto it = g_Relationships.find(key);
+    if (it == g_Relationships.end())
+    {
+        RelationshipRow row;
+        row.botGuid   = botGuid;
+        row.otherGuid = otherGuid;
+        it = g_Relationships.emplace(key, std::move(row)).first;
+    }
+
+    it->second.lastGiftAt = static_cast<uint32_t>(time(nullptr));
+    g_RelationshipDirty.insert(key);
+}
+
 void LoadRelationshipsFromDB()
 {
     std::lock_guard<std::mutex> lock(g_RelationshipMutex);
@@ -100,8 +121,8 @@ void LoadRelationshipsFromDB()
     g_RelationshipDirty.clear();
 
     QueryResult result = CharacterDatabase.Query(
-        "SELECT bot_guid, other_guid, other_is_bot, affinity, reason, interaction_count "
-        "FROM mod_bot_minds_relationship");
+        "SELECT bot_guid, other_guid, other_is_bot, affinity, reason, interaction_count, "
+        "UNIX_TIMESTAMP(last_gift_at) FROM mod_bot_minds_relationship");
 
     if (!result)
     {
@@ -120,6 +141,7 @@ void LoadRelationshipsFromDB()
         row.affinity         = fields[3].Get<float>();
         row.reason           = fields[4].IsNull() ? "" : fields[4].Get<std::string>();
         row.interactionCount = fields[5].Get<uint32_t>();
+        row.lastGiftAt       = fields[6].IsNull() ? 0 : fields[6].Get<uint32_t>();
 
         g_Relationships[Key(row.botGuid, row.otherGuid)] = std::move(row);
         ++count;
@@ -146,15 +168,20 @@ void FlushRelationshipsToDB()
         std::string escReason = row.reason;
         CharacterDatabase.EscapeString(escReason);
 
+        const std::string giftValue = row.lastGiftAt == 0
+            ? "NULL"
+            : SafeFormat("FROM_UNIXTIME({})", row.lastGiftAt);
+
         CharacterDatabase.Execute(SafeFormat(
             "INSERT INTO mod_bot_minds_relationship "
-            "(bot_guid, other_guid, other_is_bot, affinity, reason, interaction_count) "
-            "VALUES ({}, {}, {}, {:.3f}, '{}', {}) "
+            "(bot_guid, other_guid, other_is_bot, affinity, reason, interaction_count, last_gift_at) "
+            "VALUES ({}, {}, {}, {:.3f}, '{}', {}, {}) "
             "ON DUPLICATE KEY UPDATE "
             "other_is_bot = VALUES(other_is_bot), affinity = VALUES(affinity), "
-            "reason = VALUES(reason), interaction_count = VALUES(interaction_count)",
+            "reason = VALUES(reason), interaction_count = VALUES(interaction_count), "
+            "last_gift_at = VALUES(last_gift_at)",
             row.botGuid, row.otherGuid, row.otherIsBot ? 1 : 0,
-            row.affinity, escReason, row.interactionCount));
+            row.affinity, escReason, row.interactionCount, giftValue));
     }
 
     if (g_DebugEnabled)

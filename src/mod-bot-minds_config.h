@@ -102,6 +102,18 @@ extern uint32_t g_EventChanceGuildLevelUp;
 extern uint32_t g_EventChanceGuildMember;
 
 // --------------------------------------------
+// Actions: what bots will actually do, not just say
+// --------------------------------------------
+extern bool     g_ActionsEnable;
+extern uint32_t g_ActionMaxAttempts;
+extern float    g_GiftMinAffinity;      // how much a bot must like you before it parts with coin
+extern uint32_t g_GiftMaxCopper;        // absolute ceiling on one gift; 0 disables gold entirely
+extern uint32_t g_GiftCopperPerLevel;   // scales the ceiling with the giver's level
+extern uint32_t g_GiftCooldownSec;      // per bot, per person
+extern uint32_t g_UnpromptedChance;     // chance an ambient turn is a favour rather than a remark
+extern uint32_t g_UnpromptedCooldownSec;
+
+// --------------------------------------------
 // Presentation
 // --------------------------------------------
 extern bool     g_EnableTypingSimulation;

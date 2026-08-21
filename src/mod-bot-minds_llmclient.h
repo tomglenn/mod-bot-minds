@@ -13,6 +13,7 @@ struct LLMResult
     std::string reply;
     nlohmann::json memory_additions = nlohmann::json::array();   // [{kind,text,salience}]
     nlohmann::json relationship_delta = nullptr;                 // {affinity_change, reason} or null
+    nlohmann::json action = nullptr;                             // {kind, spell, copper} or null
 };
 
 class ILLMProvider

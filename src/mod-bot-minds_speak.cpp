@@ -1,4 +1,5 @@
 #include "mod-bot-minds_speak.h"
+#include "mod-bot-minds_action.h"
 #include "mod-bot-minds_attention.h"
 #include "mod-bot-minds_config.h"
 #include "mod-bot-minds_governor.h"
@@ -16,6 +17,7 @@
 #include "PlayerbotAI.h"
 #include "PlayerbotMgr.h"
 
+#include <cctype>
 #include <chrono>
 #include <string>
 #include <thread>
@@ -114,7 +116,7 @@ namespace
     };
 }
 
-bool RequestBotTurn(const TurnRequest& request, bool forced)
+bool RequestBotTurn(TurnRequest& request, bool forced)
 {
     if (!g_Enable || !request.bot)
         return false;
@@ -144,6 +146,7 @@ bool RequestBotTurn(const TurnRequest& request, bool forced)
     const std::string channelName   = request.channelName;
     const uint32_t    chainDepth    = request.chainDepth;
     const TurnKind    kind          = request.kind;
+    const ActionMenu  menu          = request.menu;
 
     BotMindsGovernor::OnSubmit(botGuid);
 
@@ -230,6 +233,44 @@ bool RequestBotTurn(const TurnRequest& request, bool forced)
                 ApplyRelationshipDelta(botGuid, otherGuid, otherIsBot,
                                        result.relationship_delta.value("affinity_change", 0.0f),
                                        result.relationship_delta.value("reason", std::string()));
+            }
+
+            // Say it first, then do it. That is the order a person would use, and it
+            // means the words are already out if the action needs a retry or two.
+            if (result.action.is_object())
+            {
+                BotAction action;
+                action.botGuid    = botGuid;
+                action.targetGuid = otherGuid;
+                action.kind       = ActionKindFromName(result.action.value("kind", std::string("none")));
+                action.spellName  = result.action.value("spell", std::string());
+                action.copper     = result.action.value("copper", 0u);
+                action.promised    = (kind == TurnKind::DirectReply || kind == TurnKind::Interjection);
+
+                // Did the bot already say it was posting the money? Checked here
+                // because this is where the spoken words are.
+                std::string lowered = reply;
+                for (char& c : lowered)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+                for (const char* hint : { "mail", "post", "inbox", "sent it", "send it" })
+                {
+                    if (lowered.find(hint) != std::string::npos)
+                    {
+                        action.mentionedPost = true;
+                        break;
+                    }
+                }
+
+                if (action.kind != ActionKind::None && ValidateAction(menu, action))
+                {
+                    SubmitBotAction(action);
+                }
+                else if (g_DebugEnabled && action.kind != ActionKind::None)
+                {
+                    LOG_INFO("server.loading",
+                             "[BotMinds] Dropped an action {} tried to take that was not on offer.", botName);
+                }
             }
 
             // A bot speaking can draw a reply from another bot, up to the chain limit.

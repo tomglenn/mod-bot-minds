@@ -250,6 +250,66 @@ BotMinds.Events.Chance.GuildLevelUp  = 50
 BotMinds.Events.Chance.GuildMember   = 60
 
 ########################################
+# Actions
+#
+# What bots will actually do, not just say. Buffs and out-of-combat heals for
+# anyone who asks; gold if they like you enough; follow and wait for bots you
+# have grouped with.
+#
+# A bot is told what it can really do before it answers, so it only offers real
+# things and refuses in its own words.
+########################################
+
+BotMinds.Actions.Enable = 1
+
+# BotMinds.Actions.MaxAttempts
+#     Description: A cast can fail because the bot was walking or standing up, so
+#                  actions are retried. This is how many goes they get.
+#     Default:     3
+BotMinds.Actions.MaxAttempts = 3
+
+# BotMinds.Actions.Gold.MinAffinity
+#     Description: How warmly a bot must feel about you, on a -1 to 1 scale,
+#                  before it will part with coin. Strangers sit near 0.
+#     Default:     0.25
+BotMinds.Actions.Gold.MinAffinity = 0.25
+
+# BotMinds.Actions.Gold.MaxCopper
+#     Description: Hard ceiling on a single gift, in copper. 5000 is 50 silver.
+#                  0 stops bots giving money at all.
+#
+#                  This is a deliberate design number, not a fraction of the
+#                  bot's purse: bots are created holding hundreds of gold, so
+#                  "whatever it can spare" would hand a low level player a
+#                  fortune and wreck your economy.
+#     Default:     5000
+BotMinds.Actions.Gold.MaxCopper = 5000
+
+# BotMinds.Actions.Gold.CopperPerLevel
+#     Description: Scales the ceiling by the giving bot's level, so a level 8 bot
+#                  is not as generous as a level 60 one. 100 is 1 silver a level.
+#     Default:     100
+BotMinds.Actions.Gold.CopperPerLevel = 100
+
+# BotMinds.Actions.Gold.CooldownSec
+#     Description: How long before the same bot will give you money again.
+#                  86400 is once a day. Survives a restart.
+#     Default:     86400
+BotMinds.Actions.Gold.CooldownSec = 86400
+
+# BotMinds.Actions.Unprompted.Chance
+#     Description: Chance that an idle chatter turn becomes a good turn instead of
+#                  a remark, when there is somebody nearby to do it for.
+#     Default:     20
+BotMinds.Actions.Unprompted.Chance = 20
+
+# BotMinds.Actions.Unprompted.CooldownSec
+#     Description: How long before anyone does you another unasked favour, so it
+#                  stays a nice surprise.
+#     Default:     900
+BotMinds.Actions.Unprompted.CooldownSec = 900
+
+########################################
 # Presentation
 ########################################
 

@@ -1,4 +1,5 @@
 #include "mod-bot-minds_config.h"
+#include "mod-bot-minds_action.h"
 #include "mod-bot-minds_governor.h"
 #include "mod-bot-minds_llmclient.h"
 #include "mod-bot-minds_memory.h"
@@ -107,6 +108,18 @@ uint32_t g_EventChanceGuildLevelUp = 50;
 uint32_t g_EventChanceGuildMember  = 60;
 
 // --------------------------------------------
+// Actions
+// --------------------------------------------
+bool     g_ActionsEnable         = true;
+uint32_t g_ActionMaxAttempts     = 3;
+float    g_GiftMinAffinity       = 0.25f;
+uint32_t g_GiftMaxCopper         = 5000;
+uint32_t g_GiftCopperPerLevel    = 100;
+uint32_t g_GiftCooldownSec       = 86400;
+uint32_t g_UnpromptedChance      = 20;
+uint32_t g_UnpromptedCooldownSec = 900;
+
+// --------------------------------------------
 // Presentation
 // --------------------------------------------
 bool     g_EnableTypingSimulation       = false;
@@ -188,6 +201,15 @@ void LoadBotMindsConfig()
     g_EventChanceGuildLevelUp  = sConfigMgr->GetOption<uint32_t>("BotMinds.Events.Chance.GuildLevelUp", 50);
     g_EventChanceGuildMember   = sConfigMgr->GetOption<uint32_t>("BotMinds.Events.Chance.GuildMember", 60);
 
+    g_ActionsEnable         = sConfigMgr->GetOption<bool>("BotMinds.Actions.Enable", true);
+    g_ActionMaxAttempts     = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.MaxAttempts", 3);
+    g_GiftMinAffinity       = sConfigMgr->GetOption<float>("BotMinds.Actions.Gold.MinAffinity", 0.25f);
+    g_GiftMaxCopper         = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.Gold.MaxCopper", 5000);
+    g_GiftCopperPerLevel    = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.Gold.CopperPerLevel", 100);
+    g_GiftCooldownSec       = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.Gold.CooldownSec", 86400);
+    g_UnpromptedChance      = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.Unprompted.Chance", 20);
+    g_UnpromptedCooldownSec = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.Unprompted.CooldownSec", 900);
+
     g_EnableTypingSimulation       = sConfigMgr->GetOption<bool>("BotMinds.Typing.Enable", false);
     g_TypingSimulationBaseDelay    = sConfigMgr->GetOption<uint32_t>("BotMinds.Typing.BaseDelayMs", 1000);
     g_TypingSimulationDelayPerChar = sConfigMgr->GetOption<uint32_t>("BotMinds.Typing.DelayPerCharMs", 25);
@@ -198,6 +220,8 @@ void LoadBotMindsConfig()
 
     if (g_MaxBotsToPick == 0)
         g_MaxBotsToPick = 1;
+    if (g_ActionMaxAttempts == 0)
+        g_ActionMaxAttempts = 1;
     if (g_MaxConcurrentCalls == 0)
         g_MaxConcurrentCalls = 1;
     if (g_AmbientMaxIntervalSec < g_AmbientMinIntervalSec)
@@ -227,6 +251,10 @@ void BotMindsConfigWorldScript::OnShutdown()
 void BotMindsConfigWorldScript::OnUpdate(uint32 diff)
 {
     BotMindsGovernor::Tick(diff);
+
+    // Actions decided on an API thread are executed here, on the world thread,
+    // which is the only safe place to cast spells or open trade windows.
+    RunPendingActions(diff);
 
     time_t now = time(nullptr);
     if (g_SaveIntervalMinutes > 0 && now - g_LastSaveTime >= static_cast<time_t>(g_SaveIntervalMinutes * 60))

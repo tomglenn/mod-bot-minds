@@ -1,6 +1,7 @@
 #ifndef MOD_BOT_MINDS_PROMPT_H
 #define MOD_BOT_MINDS_PROMPT_H
 
+#include "mod-bot-minds_action.h"
 #include "mod-bot-minds_transcript.h"
 
 #include <cstdint>
@@ -30,6 +31,10 @@ struct TurnRequest
     std::string trigger;              // the message being answered, or the situation
     std::string channelName;          // only for ChatScope::Channel
     uint32_t    chainDepth = 0;       // bot-to-bot hops so far; 0 for anything a human started
+
+    // What this bot can really do for `other` this turn. Filled by BuildTurnPrompt
+    // and kept so the same menu validates whatever the model chooses.
+    ActionMenu  menu;
 };
 
 struct TurnPrompt
@@ -40,6 +45,6 @@ struct TurnPrompt
 
 // Build the prompt for a turn. Every line a bot speaks comes through here, so
 // the module has exactly one voice.
-TurnPrompt BuildTurnPrompt(const TurnRequest& request);
+TurnPrompt BuildTurnPrompt(TurnRequest& request);
 
 #endif // MOD_BOT_MINDS_PROMPT_H

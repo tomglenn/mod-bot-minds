@@ -1,4 +1,5 @@
 #include "mod-bot-minds_prompt.h"
+#include "mod-bot-minds_action.h"
 #include "mod-bot-minds_config.h"
 #include "mod-bot-minds_memory.h"
 #include "mod-bot-minds_persona.h"
@@ -197,7 +198,7 @@ namespace
     }
 }
 
-TurnPrompt BuildTurnPrompt(const TurnRequest& request)
+TurnPrompt BuildTurnPrompt(TurnRequest& request)
 {
     TurnPrompt prompt;
 
@@ -247,10 +248,25 @@ TurnPrompt BuildTurnPrompt(const TurnRequest& request)
     if (!transcript.empty())
         system << "Recent chat here (oldest first):\n" << transcript;
 
+    // What this bot can genuinely do, so it can only offer real things and its
+    // refusals come out in its own voice.
+    if (request.other)
+    {
+        request.menu = BuildActionMenu(bot, request.other,
+                                       /*unprompted=*/request.kind == TurnKind::Ambient);
+
+        std::string capabilities = DescribeActionMenu(request.menu, request.other->GetName());
+        if (!capabilities.empty())
+            system << "\n" << capabilities << "\n";
+    }
+
     system << "\n" << KindInstruction(request) << "\n\n";
     system << VoiceRules() << "\n\n";
     system << "Use the bot_turn tool for everything: your reply, whether you speak at all, anything new worth "
-              "remembering, and any change in how you feel about the person you are talking to.";
+              "remembering, and any change in how you feel about the person you are talking to. "
+              "Anything you agree to do, put in the action field: a favour, a buff, coin, or doing as "
+              "you are told. Words alone change nothing in the game. "
+              "and let it warm you to them a little.";
 
     prompt.system = system.str();
 
