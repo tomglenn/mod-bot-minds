@@ -27,6 +27,7 @@
 #include <deque>
 #include <mutex>
 #include <sstream>
+#include <unordered_map>
 
 namespace
 {
@@ -35,6 +36,17 @@ namespace
 
     std::deque<BotAction> g_Pending;
     std::mutex            g_PendingMutex;
+
+    // Bots currently mid-conversation, and when they are free to get on with
+    // their day again.
+    struct ConversationHold
+    {
+        uint64_t targetGuid = 0;
+        uint32_t remainingMs = 0;
+    };
+
+    std::unordered_map<uint64_t, ConversationHold> g_Holds;
+    std::mutex                                    g_HoldMutex;
 
     PlayerbotAI* BotAIFor(Player* player)
     {
@@ -733,6 +745,55 @@ void RunPendingActions(uint32_t diff)
 
         std::lock_guard<std::mutex> lock(g_PendingMutex);
         g_Pending.push_back(action);
+    }
+}
+
+void HoldStillForConversation(uint64_t botGuid, uint64_t targetGuid)
+{
+    if (g_ConversationHoldSec == 0 || botGuid == 0 || targetGuid == 0)
+        return;
+
+    std::lock_guard<std::mutex> lock(g_HoldMutex);
+
+    ConversationHold& hold = g_Holds[botGuid];
+    hold.targetGuid  = targetGuid;
+    hold.remainingMs = g_ConversationHoldSec * 1000;   // each new line refreshes it
+}
+
+void RunConversationHolds(uint32_t diff)
+{
+    std::lock_guard<std::mutex> lock(g_HoldMutex);
+
+    for (auto it = g_Holds.begin(); it != g_Holds.end(); )
+    {
+        if (it->second.remainingMs <= diff)
+        {
+            it = g_Holds.erase(it);
+            continue;
+        }
+
+        it->second.remainingMs -= diff;
+
+        Player* bot = ObjectAccessor::FindPlayer(ObjectGuid(it->first));
+        Player* target = ObjectAccessor::FindPlayer(ObjectGuid(it->second.targetGuid));
+
+        // Anything that makes holding wrong also ends the hold: combat always
+        // wins, and there is nothing to stand still for if they have gone.
+        if (!bot || !target || !bot->IsInWorld() || !target->IsInWorld() || !bot->IsAlive()
+            || bot->IsInCombat() || bot->GetMapId() != target->GetMapId()
+            || !bot->IsWithinDistInMap(target, g_SayDistance * 2.0f))
+        {
+            it = g_Holds.erase(it);
+            continue;
+        }
+
+        // Re-asserted every tick because whatever the bot was doing will simply
+        // move it again otherwise. Nothing is modified that needs putting back, so
+        // if we stop refreshing, or the server dies, the bot just carries on.
+        bot->StopMovingOnCurrentPos();
+        bot->SetFacingToObject(target);
+
+        ++it;
     }
 }
 

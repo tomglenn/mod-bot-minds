@@ -204,6 +204,15 @@ bool RequestBotTurn(TurnRequest& request, bool forced)
                 LOG_INFO("server.loading", "[BotMinds] {} ({} in {}): {}",
                          botName, static_cast<int>(kind), ScopeName(key.scope), reply);
 
+            // A person would stop walking to type. Group members are left alone:
+            // they follow you anyway, and planting them would strand them if you
+            // are on the move.
+            if (!otherIsBot && otherGuid != 0 && !bot->IsInCombat()
+                && !(bot->GetGroup() && bot->GetGroup()->IsMember(ObjectGuid(otherGuid))))
+            {
+                HoldStillForConversation(botGuid, otherGuid);
+            }
+
             RecordChatLine(key, botGuid, botName, reply);
 
             // Answering a person puts this bot in conversation with them, so their

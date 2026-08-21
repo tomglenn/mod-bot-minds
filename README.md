@@ -21,6 +21,8 @@ Playerbots that talk like people. Each bot has a persona, remembers what happene
 
 **Every bot is a different person.** Each one has its own temperament and way of speaking, and keeps it for good. The blunt one stays blunt, the cheerful one stays cheerful. `.botminds persona <bot>`.
 
+**They stop to talk.** A bot you speak to plants itself and turns to face you for a few seconds, refreshed each time it says something, so you are not chasing it out of earshot mid-conversation. Combat interrupts it immediately, and bots in your group are left alone since they are following you already.
+
 **They form opinions of you.** Help a bot out and it warms to you. Be rude and it cools off, and it remembers why. `.botminds feelings <bot>` shows where you stand.
 
 **They do things, not just say them.** Ask a priest for a buff and you get Power Word: Fortitude, not a promise. Ask a bot who likes you for a few coppers and it opens a trade, or puts it in the post if you are not grouped. Ask one of your own party bots to come with you, in whatever words you like, and it comes. A bot is told what it can genuinely do before it answers, so it never offers something it cannot deliver, and it turns you down in its own voice when the answer is no.
@@ -114,6 +116,7 @@ If you get it working, or find it broken, an issue or a PR would be welcome.
 | `BotMinds.Limits.PerBotCooldownSec` | 12 | Quiet time between one bot's unprompted lines. A direct answer ignores it. |
 | `BotMinds.Limits.MaxCallsPerMinute` | 60 | Ceiling on API calls in any one minute. The safety rail on your bill. |
 | `BotMinds.Ambient.Chance` | 25 | How talkative bots are when nothing is happening. |
+| `BotMinds.Conversation.HoldStillSec` | 8 | How long a bot stops and faces you after speaking, so it does not wander off mid-conversation. |
 | `BotMinds.Actions.Gold.MaxCopper` | 5000 | Hard ceiling on a single gift, in copper. 0 stops bots giving money. |
 | `BotMinds.Actions.Gold.MinAffinity` | 0.25 | How much a bot must like you before it parts with coin. |
 | `BotMinds.Actions.Unprompted.Chance` | 20 | How often idle chatter becomes a favour instead of a remark. |

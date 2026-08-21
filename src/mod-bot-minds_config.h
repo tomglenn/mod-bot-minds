@@ -112,6 +112,7 @@ extern uint32_t g_GiftCopperPerLevel;   // scales the ceiling with the giver's l
 extern uint32_t g_GiftCooldownSec;      // per bot, per person
 extern uint32_t g_UnpromptedChance;     // chance an ambient turn is a favour rather than a remark
 extern uint32_t g_UnpromptedCooldownSec;
+extern uint32_t g_ConversationHoldSec;  // how long a bot stands still after speaking to somebody
 
 // --------------------------------------------
 // Presentation

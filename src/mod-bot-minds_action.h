@@ -96,6 +96,13 @@ void SubmitBotAction(const BotAction& action);
 // Drained from BotMindsConfigWorldScript::OnUpdate, on the world thread.
 void RunPendingActions(uint32_t diff);
 
+// Note that a bot just spoke to somebody, so it should stand still and face them
+// for a moment rather than wandering off mid-sentence. Safe from any thread.
+void HoldStillForConversation(uint64_t botGuid, uint64_t targetGuid);
+
+// Keeps held bots planted. Also from the world tick.
+void RunConversationHolds(uint32_t diff);
+
 // Counters for `.botminds status`.
 uint32_t ActionsPerformed();
 uint32_t ActionsFailed();

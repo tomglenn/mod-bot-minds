@@ -309,6 +309,18 @@ BotMinds.Actions.Unprompted.Chance = 20
 #     Default:     900
 BotMinds.Actions.Unprompted.CooldownSec = 900
 
+# BotMinds.Conversation.HoldStillSec
+#     Description: How long a bot stands still and faces you after speaking to
+#                  you, in seconds. Each new line refreshes it, so a conversation
+#                  keeps them planted until it goes quiet.
+#
+#                  A real player stops walking to type. Without this a bot answers
+#                  you and jogs off mid-sentence, and you end up chasing it to stay
+#                  inside earshot. Combat always wins, and bots in your group are
+#                  left alone since they follow you anyway. 0 disables it.
+#     Default:     8
+BotMinds.Conversation.HoldStillSec = 8
+
 ########################################
 # Presentation
 ########################################

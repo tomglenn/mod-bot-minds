@@ -118,6 +118,7 @@ uint32_t g_GiftCopperPerLevel    = 100;
 uint32_t g_GiftCooldownSec       = 86400;
 uint32_t g_UnpromptedChance      = 20;
 uint32_t g_UnpromptedCooldownSec = 900;
+uint32_t g_ConversationHoldSec   = 8;
 
 // --------------------------------------------
 // Presentation
@@ -209,6 +210,7 @@ void LoadBotMindsConfig()
     g_GiftCooldownSec       = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.Gold.CooldownSec", 86400);
     g_UnpromptedChance      = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.Unprompted.Chance", 20);
     g_UnpromptedCooldownSec = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.Unprompted.CooldownSec", 900);
+    g_ConversationHoldSec   = sConfigMgr->GetOption<uint32_t>("BotMinds.Conversation.HoldStillSec", 8);
 
     g_EnableTypingSimulation       = sConfigMgr->GetOption<bool>("BotMinds.Typing.Enable", false);
     g_TypingSimulationBaseDelay    = sConfigMgr->GetOption<uint32_t>("BotMinds.Typing.BaseDelayMs", 1000);
@@ -255,6 +257,7 @@ void BotMindsConfigWorldScript::OnUpdate(uint32 diff)
     // Actions decided on an API thread are executed here, on the world thread,
     // which is the only safe place to cast spells or open trade windows.
     RunPendingActions(diff);
+    RunConversationHolds(diff);
 
     time_t now = time(nullptr);
     if (g_SaveIntervalMinutes > 0 && now - g_LastSaveTime >= static_cast<time_t>(g_SaveIntervalMinutes * 60))
