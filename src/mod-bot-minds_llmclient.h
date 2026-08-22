@@ -11,6 +11,7 @@ struct LLMResult
     bool        ok = false;              // a usable response came back
     bool        shouldReply = true;      // the bot chose to speak
     std::string reply;
+    std::string emote;                   // optional gesture name, rate limited before use
     nlohmann::json memory_additions = nlohmann::json::array();   // [{kind,text,salience}]
     nlohmann::json relationship_delta = nullptr;                 // {affinity_change, reason} or null
     nlohmann::json action = nullptr;                             // {kind, spell, copper} or null

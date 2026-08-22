@@ -1,10 +1,12 @@
 #include "mod-bot-minds_action.h"
 #include "mod-bot-minds_config.h"
+#include "mod-bot-minds_memory.h"
 #include "mod-bot-minds_relationship.h"
 #include "mod-bot-minds-utilities.h"
 
 #include "AiObjectContext.h"
 #include "DatabaseEnv.h"
+#include "EmoteAction.h"
 #include "GenericBuffUtils.h"
 #include "Group.h"
 #include "Log.h"
@@ -15,6 +17,7 @@
 #include "PlayerbotAI.h"
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotMgr.h"
+#include "SharedDefines.h"
 #include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
@@ -47,6 +50,32 @@ namespace
 
     std::unordered_map<uint64_t, ConversationHold> g_Holds;
     std::mutex                                    g_HoldMutex;
+
+    // When each bot last emoted, so restraint is enforced here rather than trusted
+    // to the model. An emote every other sentence stops meaning anything.
+    std::unordered_map<uint64_t, time_t> g_LastEmoteAt;
+    std::mutex                           g_EmoteMutex;
+
+    // A deliberately short list. These are the gestures that read as conversation
+    // rather than performance, and keeping it closed means the model cannot make a
+    // bot dance at somebody.
+    uint32_t EmoteIdFromName(const std::string& name)
+    {
+        static const std::unordered_map<std::string, uint32_t> allowed = {
+            { "wave",   TEXT_EMOTE_WAVE },
+            { "laugh",  TEXT_EMOTE_LAUGH },
+            { "nod",    TEXT_EMOTE_NOD },
+            { "shrug",  TEXT_EMOTE_SHRUG },
+            { "thank",  TEXT_EMOTE_THANK },
+            { "cheer",  TEXT_EMOTE_CHEER },
+            { "salute", TEXT_EMOTE_SALUTE },
+            { "bow",    TEXT_EMOTE_BOW },
+            { "sigh",   TEXT_EMOTE_SIGH }
+        };
+
+        auto it = allowed.find(name);
+        return it == allowed.end() ? 0 : it->second;
+    }
 
     PlayerbotAI* BotAIFor(Player* player)
     {
@@ -221,6 +250,27 @@ namespace
         if (bot && target)
             bot->Whisper(text, LANG_UNIVERSAL, target);
     }
+}
+
+uint32_t ResolveEmote(uint64_t botGuid, const std::string& name)
+{
+    if (g_EmoteCooldownSec == 0 || name.empty())
+        return 0;
+
+    uint32_t emoteId = EmoteIdFromName(Lower(name));
+    if (emoteId == 0)
+        return 0;
+
+    const time_t now = time(nullptr);
+
+    std::lock_guard<std::mutex> lock(g_EmoteMutex);
+
+    auto it = g_LastEmoteAt.find(botGuid);
+    if (it != g_LastEmoteAt.end() && now - it->second < static_cast<time_t>(g_EmoteCooldownSec))
+        return 0;
+
+    g_LastEmoteAt[botGuid] = now;
+    return emoteId;
 }
 
 ActionKind ActionKindFromName(const std::string& name)
@@ -533,9 +583,23 @@ namespace
         return true;
     }
 
+    // Emoting goes through the session, so it queues like everything else.
+    void PerformEmote(Player* bot, Player* target, uint32 emoteId)
+    {
+        WorldPacket data(SMSG_TEXT_EMOTE);
+        data << emoteId;
+        data << EmoteActionBase::GetNumberOfEmoteVariants(
+                    static_cast<TextEmotes>(emoteId), bot->getRace(), bot->getGender());
+        data << target->GetGUID();
+        bot->GetSession()->HandleTextEmoteOpcode(data);
+    }
+
+    // Whether the memories riding on an action get written depends on which of
+    // these it ends with, which is why finishing and succeeding are separate.
     enum class Outcome
     {
-        Done,        // finished, successfully or not worth retrying
+        Succeeded,   // it happened: commit whatever the bot wanted to remember
+        Abandoned,   // it will not happen: drop those memories rather than lie
         Retry,       // transient failure: costs an attempt
         Progressed   // a step of a multi-step action: costs nothing, honours readyInMs
     };
@@ -546,11 +610,11 @@ namespace
         Player* target = ObjectAccessor::FindPlayer(ObjectGuid(action.targetGuid));
 
         if (!bot || !target || !bot->IsInWorld() || !target->IsInWorld())
-            return Outcome::Done;   // gone; nothing to apologise for
+            return Outcome::Abandoned;   // gone; nothing to apologise for
 
         PlayerbotAI* botAI = BotAIFor(bot);
         if (!botAI)
-            return Outcome::Done;
+            return Outcome::Abandoned;
 
         switch (action.kind)
         {
@@ -558,9 +622,9 @@ namespace
             case ActionKind::Heal:
             {
                 if (!bot->IsAlive() || bot->IsInCombat())
-                    return Outcome::Done;
+                    return Outcome::Abandoned;
                 if (bot->GetMapId() != target->GetMapId())
-                    return Outcome::Done;
+                    return Outcome::Abandoned;
 
                 // CastSpell refuses while the bot is moving, and a following bot
                 // is always moving, so plant it before trying.
@@ -573,7 +637,7 @@ namespace
                     if (g_DebugEnabled)
                         LOG_INFO("server.loading", "[BotMinds] {} cast {} on {}.",
                                  bot->GetName(), action.spellName, target->GetName());
-                    return Outcome::Done;
+                    return Outcome::Succeeded;
                 }
 
                 return Outcome::Retry;   // moving, standing up, or on cooldown
@@ -603,7 +667,7 @@ namespace
                         LOG_INFO("server.loading", "[BotMinds] {} posted {} to {}{}.",
                                  bot->GetName(), FormatMoney(action.copper), target->GetName(),
                                  action.mentionedPost ? "" : " (and had to spell it out)");
-                    return Outcome::Done;
+                    return Outcome::Succeeded;
                 }
 
                 // Open the window first, then come back once the client has it up.
@@ -623,7 +687,7 @@ namespace
                     if (g_DebugEnabled)
                         LOG_INFO("server.loading", "[BotMinds] {}'s trade with {} went away before the coin went in.",
                                  bot->GetName(), target->GetName());
-                    return Outcome::Done;
+                    return Outcome::Abandoned;
                 }
 
                 // Put the coin in, then come back to accept. Setting the money
@@ -649,7 +713,7 @@ namespace
                 if (g_DebugEnabled)
                     LOG_INFO("server.loading", "[BotMinds] {} accepted its side of the trade with {}.",
                              bot->GetName(), target->GetName());
-                return Outcome::Done;
+                return Outcome::Succeeded;
             }
 
             case ActionKind::Follow:
@@ -664,14 +728,37 @@ namespace
                 if (g_DebugEnabled)
                     LOG_INFO("server.loading", "[BotMinds] {} sent '{}' on behalf of {}.",
                              bot->GetName(), command, target->GetName());
-                return Outcome::Done;
+                return Outcome::Succeeded;
             }
 
+            case ActionKind::Emote:
+                if (bot->IsInCombat() || !bot->IsAlive())
+                    return Outcome::Abandoned;
+
+                PerformEmote(bot, target, action.emoteId);
+                if (g_DebugEnabled)
+                    LOG_INFO("server.loading", "[BotMinds] {} emoted {} at {}.",
+                             bot->GetName(), action.emoteId, target->GetName());
+                return Outcome::Succeeded;
+
             case ActionKind::None:
-                return Outcome::Done;
+                return Outcome::Abandoned;
         }
 
-        return Outcome::Done;
+        return Outcome::Abandoned;
+    }
+
+    // Only now is it true, so only now is it remembered.
+    void CommitMemories(const BotAction& action)
+    {
+        for (const PendingMemory& memory : action.memories)
+            AddMemory(action.botGuid, action.targetGuid, memory.kind, memory.text, memory.salience);
+
+        if (action.hasRelationshipChange && action.targetGuid != 0)
+        {
+            ApplyRelationshipDelta(action.botGuid, action.targetGuid, action.otherIsBot,
+                                   action.affinityChange, action.affinityReason);
+        }
     }
 }
 
@@ -698,7 +785,7 @@ void RunPendingActions(uint32_t diff)
 
     for (BotAction& action : due)
     {
-        Outcome outcome = Outcome::Done;
+        Outcome outcome = Outcome::Abandoned;
 
         try
         {
@@ -707,11 +794,23 @@ void RunPendingActions(uint32_t diff)
         catch (const std::exception& ex)
         {
             LOG_ERROR("server.loading", "[BotMinds] Exception performing action: {}", ex.what());
-            outcome = Outcome::Done;
+            outcome = Outcome::Abandoned;
         }
 
-        if (outcome == Outcome::Done)
+        if (outcome == Outcome::Succeeded)
+        {
+            CommitMemories(action);
             continue;
+        }
+
+        if (outcome == Outcome::Abandoned)
+        {
+            if (g_DebugEnabled && !action.memories.empty())
+                LOG_INFO("server.loading",
+                         "[BotMinds] Action never happened, so {} thing(s) it would have remembered were dropped.",
+                         static_cast<uint32_t>(action.memories.size()));
+            continue;
+        }
 
         // A step of a multi-step action is progress, not failure: it keeps its own
         // delay and does not eat into the retry budget.
@@ -736,7 +835,8 @@ void RunPendingActions(uint32_t diff)
             }
 
             if (g_DebugEnabled)
-                LOG_INFO("server.loading", "[BotMinds] Gave up on an action after {} attempts.",
+                LOG_INFO("server.loading", "[BotMinds] Gave up on an action after {} attempts, "
+                                           "so nothing about it was remembered.",
                          static_cast<uint32_t>(action.attempt));
             continue;
         }

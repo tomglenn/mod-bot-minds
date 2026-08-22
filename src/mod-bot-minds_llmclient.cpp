@@ -31,6 +31,13 @@ static const json& BotTurnSchema()
                 {"type", "string"},
                 {"description", "The words the bot says out loud. Empty when should_reply is false."}
             }},
+            {"emote", {
+                {"type", "string"},
+                {"description", "Optional gesture to go with the line: wave, laugh, nod, shrug, thank, "
+                                "cheer, salute, bow or sigh. Use these rarely. An occasional wave says "
+                                "something; one attached to every greeting is noise, and most lines want "
+                                "none at all."}
+            }},
             {"memory_additions", {
                 {"type", "array"},
                 {"description", "Anything from this exchange worth remembering later."},
@@ -237,6 +244,9 @@ static void FillFromToolInput(LLMResult& result, const json& input)
 
     if (input.contains("should_reply") && input["should_reply"].is_boolean())
         result.shouldReply = input["should_reply"].get<bool>();
+
+    if (input.contains("emote") && input["emote"].is_string())
+        result.emote = input["emote"].get<std::string>();
 
     if (input.contains("memory_additions") && input["memory_additions"].is_array())
         result.memory_additions = input["memory_additions"];

@@ -321,6 +321,17 @@ BotMinds.Actions.Unprompted.CooldownSec = 900
 #     Default:     8
 BotMinds.Conversation.HoldStillSec = 8
 
+# BotMinds.Emote.CooldownSec
+#     Description: Least time between one bot's gestures, in seconds. 0 stops bots
+#                  emoting at all.
+#
+#                  A bot may add a wave, laugh, nod, shrug, thank, cheer, salute,
+#                  bow or sigh to a line. The prompt asks for restraint, and this
+#                  enforces it: an emote attached to every greeting stops meaning
+#                  anything, so the occasional one is the whole point.
+#     Default:     180
+BotMinds.Emote.CooldownSec = 180
+
 ########################################
 # Presentation
 ########################################

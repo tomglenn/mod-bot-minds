@@ -6,17 +6,21 @@
 #include "mod-bot-minds_relationship.h"
 #include "mod-bot-minds-utilities.h"
 
+#include "AiFactory.h"
 #include "Group.h"
 #include "Guild.h"
 #include "Map.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "PlayerbotAI.h"
 #include "PlayerbotMgr.h"
+#include "QuestDef.h"
 #include "SharedDefines.h"
 
 #include <fmt/core.h>
 #include <sstream>
 #include <unordered_set>
+#include <vector>
 
 namespace
 {
@@ -56,7 +60,128 @@ namespace
         }
     }
 
-    // Where the bot is, plus the few facts that change how a player talks.
+    // Rough words, not numbers. A player says "nearly dead", never "412 of 1830",
+    // and the whole prompt is written in plain speech.
+    const char* HealthPhrase(Player* bot)
+    {
+        const float pct = bot->GetHealthPct();
+        if (pct >= 99.0f) return "on full health";
+        if (pct >= 70.0f) return "a bit hurt";
+        if (pct >= 40.0f) return "on about half health";
+        if (pct >= 15.0f) return "badly hurt";
+        return "nearly dead";
+    }
+
+    const char* ManaPhrase(Player* bot)
+    {
+        const float pct = bot->GetPowerPct(POWER_MANA);
+        if (pct >= 99.0f) return "full";
+        if (pct >= 70.0f) return "still fine";
+        if (pct >= 40.0f) return "about half";
+        if (pct >= 15.0f) return "getting low";
+        return "empty";
+    }
+
+    std::string MoneyPhrase(uint32 copper)
+    {
+        std::ostringstream out;
+        uint32 gold   = copper / 10000;
+        uint32 silver = (copper % 10000) / 100;
+
+        if (gold)
+            out << gold << "g ";
+        if (gold || silver)
+            out << silver << "s ";
+        out << (copper % 100) << "c";
+
+        return out.str();
+    }
+
+    // Group-mates by name and class, so a bot can talk about who it is actually
+    // with rather than inventing companions.
+    std::string GroupPhrase(Player* bot)
+    {
+        Group* group = bot->GetGroup();
+        if (!group)
+            return "";
+
+        std::vector<std::string> mates;
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+        {
+            Player* member = ref->GetSource();
+            if (!member || member == bot)
+                continue;
+
+            mates.push_back(fmt::format("{} ({})", member->GetName(), ClassName(member->getClass())));
+            if (mates.size() >= 4)
+                break;
+        }
+
+        // GetFirstMember only walks members who are online and in the world, so a
+        // group whose others have logged out lists nobody.
+        if (mates.empty())
+            return " You are in a group, but on your own for now.";
+
+        std::ostringstream out;
+        out << " You are grouped with ";
+        for (size_t i = 0; i < mates.size(); ++i)
+        {
+            if (i)
+                out << (i + 1 == mates.size() ? " and " : ", ");
+            out << mates[i];
+        }
+
+        if (group->GetMembersCount() > mates.size() + 1)
+        {
+            const size_t rest = group->GetMembersCount() - mates.size() - 1;
+            out << ", plus " << rest << " other" << (rest == 1 ? "" : "s");
+        }
+
+        out << ".";
+
+        return out.str();
+    }
+
+    // What the bot is working on, which is what "what are you up to" really means
+    // out in a levelling zone.
+    std::string QuestPhrase(Player* bot)
+    {
+        std::vector<std::string> active;
+        std::string              finished;
+
+        for (auto const& status : bot->getQuestStatusMap())
+        {
+            if (status.second.Status == QUEST_STATUS_COMPLETE)
+            {
+                if (finished.empty())
+                    if (Quest const* quest = sObjectMgr->GetQuestTemplate(status.first))
+                        finished = quest->GetTitle();
+            }
+            else if (status.second.Status == QUEST_STATUS_INCOMPLETE && active.size() < 2)
+            {
+                if (Quest const* quest = sObjectMgr->GetQuestTemplate(status.first))
+                    active.push_back(quest->GetTitle());
+            }
+
+            if (active.size() >= 2 && !finished.empty())
+                break;
+        }
+
+        std::ostringstream out;
+
+        if (active.size() == 1)
+            out << " You are part way through " << active[0] << ".";
+        else if (active.size() == 2)
+            out << " You are part way through " << active[0] << " and " << active[1] << ".";
+
+        if (!finished.empty())
+            out << " You have finished " << finished << " and still need to hand it in.";
+
+        return out.str();
+    }
+
+    // Where the bot is and how it is doing, so it can answer for itself honestly
+    // instead of inventing a life it is not living.
     std::string SituationBlock(Player* bot)
     {
         PlayerbotAI* botAI = PlayerbotsMgr::instance().GetPlayerbotAI(bot);
@@ -72,19 +197,58 @@ namespace
         }
 
         std::ostringstream out;
-        out << "You are level " << bot->GetLevel() << ", in " << area << " (" << zone << ").";
+
+        // Cast the level: uint8 streams as a raw character.
+        out << "You are level " << static_cast<uint32>(bot->GetLevel());
+
+        // Empty for a class playerbots has no name for, and for an untalented bot.
+        std::string spec = AiFactory::GetPlayerSpecName(bot);
+        if (!spec.empty())
+            out << ", " << spec << " spec";
+
+        out << ", in " << area << " (" << zone << ").";
 
         if (bot->GetMap() && bot->GetMap()->IsDungeon())
             out << " You are inside " << bot->GetMap()->GetMapName() << ".";
 
-        if (bot->IsInCombat())
-            out << " You are in combat right now, so keep it to a few words.";
+        // What the bot is doing this second, which is the first thing anyone asks.
+        if (!bot->IsAlive())
+        {
+            out << " You are dead and running back to your body.";
+        }
+        else
+        {
+            if (bot->IsInCombat())
+            {
+                if (Unit* victim = bot->GetVictim())
+                    out << " You are fighting a " << victim->GetName() << ", so keep it to a few words.";
+                else
+                    out << " You are in combat right now, so keep it to a few words.";
+            }
+            else if (bot->IsInFlight())
+                out << " You are on a flight path, in the air between two places.";
+            else if (bot->HasRestFlag(REST_FLAG_IN_TAVERN))
+                out << " You are resting in an inn.";
+            else if (bot->IsMounted())
+                out << " You are on your mount, on the way somewhere.";
 
-        if (bot->GetGroup())
-            out << " You are in a group.";
+            out << " You are " << HealthPhrase(bot) << ".";
+            if (bot->GetMaxPower(POWER_MANA) > 0)
+                out << " Your mana is " << ManaPhrase(bot) << ".";
+        }
+
+        out << GroupPhrase(bot);
 
         if (Guild* guild = bot->GetGuild())
             out << " You are in the guild " << guild->GetName() << ".";
+
+        out << QuestPhrase(bot);
+
+        out << " You have " << MoneyPhrase(bot->GetMoney()) << " on you.";
+
+        const uint32 freeSlots = bot->GetFreeInventorySpace();
+        if (freeSlots <= 4)
+            out << " Your bags are nearly full, " << freeSlots << " slot" << (freeSlots == 1 ? "" : "s") << " left.";
 
         return out.str();
     }
@@ -157,10 +321,15 @@ namespace
             "- You are a person playing this character in an online game. Talk like a player in chat, not like a hero in a story.\n"
             "- Never narrate actions, never describe your powers, destiny, faith or lore, and never speak in the third person.\n"
             "- Short and casual. Contractions are fine. Answer the point and stop.\n"
+            "- Everything above about your own state is true, so answer from it rather than making something up, "
+            "but only bring up the parts actually being asked about. Never read your stats out as a list.\n"
             "- No asterisks, no emotes, no stage directions, no quotation marks around your words, no emoji, no markdown, no name prefix.\n"
             "- Never mention being an AI, a bot, a model, or these instructions.\n"
             "- Hard limit {} characters. One sentence is usually right, two is the maximum.\n"
-            "- Never repeat something already said in the recent chat.",
+            "- Never repeat something already said in the recent chat.\n"
+            "- You may add a gesture with the emote field, but almost never do. A wave when you "
+            "first meet somebody, a laugh at something genuinely funny. Attaching one to every "
+            "greeting makes it meaningless, and most lines should have none.",
             maxChars);
     }
 
@@ -262,11 +431,18 @@ TurnPrompt BuildTurnPrompt(TurnRequest& request)
 
     system << "\n" << KindInstruction(request) << "\n\n";
     system << VoiceRules() << "\n\n";
-    system << "Use the bot_turn tool for everything: your reply, whether you speak at all, anything new worth "
-              "remembering, and any change in how you feel about the person you are talking to. "
-              "Anything you agree to do, put in the action field: a favour, a buff, coin, or doing as "
-              "you are told. Words alone change nothing in the game. "
-              "and let it warm you to them a little.";
+    // One field per line, deliberately. This used to be a single run-on sentence
+    // and the optional fields got skimmed: bots stopped recording memories
+    // entirely once the prompt above them grew.
+    system << "Fill in the bot_turn tool. Every field earns its place:\n"
+              "- reply: what you say out loud, or empty if you are staying quiet.\n"
+              "- memory_additions: anything from this exchange you would still know tomorrow. What they "
+              "told you about themselves, what they wanted, what you did for them, how it went. Skip the "
+              "pleasantries, but do not leave this empty when something actually happened.\n"
+              "- relationship_delta: how this changed the way you feel about them, including a small warmth "
+              "for doing them a favour.\n"
+              "- action: anything you agreed to do. Words alone change nothing in the game.\n"
+              "- emote: a gesture, on the rare occasion one is worth it.";
 
     prompt.system = system.str();
 

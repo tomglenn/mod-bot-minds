@@ -119,6 +119,7 @@ uint32_t g_GiftCooldownSec       = 86400;
 uint32_t g_UnpromptedChance      = 20;
 uint32_t g_UnpromptedCooldownSec = 900;
 uint32_t g_ConversationHoldSec   = 8;
+uint32_t g_EmoteCooldownSec      = 180;
 
 // --------------------------------------------
 // Presentation
@@ -211,6 +212,7 @@ void LoadBotMindsConfig()
     g_UnpromptedChance      = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.Unprompted.Chance", 20);
     g_UnpromptedCooldownSec = sConfigMgr->GetOption<uint32_t>("BotMinds.Actions.Unprompted.CooldownSec", 900);
     g_ConversationHoldSec   = sConfigMgr->GetOption<uint32_t>("BotMinds.Conversation.HoldStillSec", 8);
+    g_EmoteCooldownSec      = sConfigMgr->GetOption<uint32_t>("BotMinds.Emote.CooldownSec", 180);
 
     g_EnableTypingSimulation       = sConfigMgr->GetOption<bool>("BotMinds.Typing.Enable", false);
     g_TypingSimulationBaseDelay    = sConfigMgr->GetOption<uint32_t>("BotMinds.Typing.BaseDelayMs", 1000);
@@ -246,6 +248,7 @@ void BotMindsConfigWorldScript::OnStartup()
 
 void BotMindsConfigWorldScript::OnShutdown()
 {
+    FlushMemoryReferences();
     FlushPersonasToDB();
     FlushRelationshipsToDB();
 }

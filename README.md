@@ -21,6 +21,10 @@ Playerbots that talk like people. Each bot has a persona, remembers what happene
 
 **Every bot is a different person.** Each one has its own temperament and way of speaking, and keeps it for good. The blunt one stays blunt, the cheerful one stays cheerful. `.botminds persona <bot>`.
 
+**They know what they are doing.** A bot's prompt carries its own state: health, mana, spec, money, group-mates by name, the quests it is part way through, whether it is resting or mounted. Ask what it is up to and you get the truth rather than an invention.
+
+**They remember what matters.** A memory's worth is its importance discounted by how stale it is, so being pulled out of a bad fight outlives a month of small talk, while two equally dull lines are separated by which happened lately. Recalling something keeps it fresh, and once a bot is holding too much the dullest is folded into a single hazy summary rather than forgotten outright.
+
 **They stop to talk.** A bot you speak to plants itself and turns to face you for a few seconds, refreshed each time it says something, so you are not chasing it out of earshot mid-conversation. Combat interrupts it immediately, and bots in your group are left alone since they are following you already.
 
 **They form opinions of you.** Help a bot out and it warms to you. Be rude and it cools off, and it remembers why. `.botminds feelings <bot>` shows where you stand.
@@ -116,6 +120,7 @@ If you get it working, or find it broken, an issue or a PR would be welcome.
 | `BotMinds.Limits.PerBotCooldownSec` | 12 | Quiet time between one bot's unprompted lines. A direct answer ignores it. |
 | `BotMinds.Limits.MaxCallsPerMinute` | 60 | Ceiling on API calls in any one minute. The safety rail on your bill. |
 | `BotMinds.Ambient.Chance` | 25 | How talkative bots are when nothing is happening. |
+| `BotMinds.Emote.CooldownSec` | 180 | Least time between one bot's gestures. 0 stops them emoting. |
 | `BotMinds.Conversation.HoldStillSec` | 8 | How long a bot stops and faces you after speaking, so it does not wander off mid-conversation. |
 | `BotMinds.Actions.Gold.MaxCopper` | 5000 | Hard ceiling on a single gift, in copper. 0 stops bots giving money. |
 | `BotMinds.Actions.Gold.MinAffinity` | 0.25 | How much a bot must like you before it parts with coin. |

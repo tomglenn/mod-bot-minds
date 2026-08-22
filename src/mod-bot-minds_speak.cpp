@@ -223,6 +223,10 @@ bool RequestBotTurn(TurnRequest& request, bool forced)
                 SetConversationFloor(key, otherGuid, botGuid);
             }
 
+            // Whatever the bot wanted to remember, and how it now feels, gathered
+            // up before we know whether there is an action to hang it on.
+            std::vector<PendingMemory> memories;
+
             // Idle remarks are not worth remembering; they would crowd out the
             // memories that matter.
             if (kind != TurnKind::Ambient && result.memory_additions.is_array())
@@ -232,20 +236,49 @@ bool RequestBotTurn(TurnRequest& request, bool forced)
                     std::string text = entry.value("text", "");
                     if (text.empty())
                         continue;
-                    AddMemory(botGuid, otherGuid, entry.value("kind", "event"), text,
-                              entry.value("salience", 0.5f));
+
+                    PendingMemory memory;
+                    memory.kind     = entry.value("kind", "event");
+                    memory.text     = std::move(text);
+                    memory.salience = entry.value("salience", 0.5f);
+                    memories.push_back(std::move(memory));
                 }
             }
 
-            if (otherGuid != 0 && result.relationship_delta.is_object())
+            // Worth saying out loud, because an empty memory list looks identical to
+            // a working one from the outside: bots quietly stopped remembering
+            // anything for a while and only a database check found it.
+            if (g_DebugEnabled && kind != TurnKind::Ambient && memories.empty())
             {
-                ApplyRelationshipDelta(botGuid, otherGuid, otherIsBot,
-                                       result.relationship_delta.value("affinity_change", 0.0f),
-                                       result.relationship_delta.value("reason", std::string()));
+                LOG_INFO("server.loading", "[BotMinds] {} came back with nothing to remember.", botName);
+            }
+
+            const bool hasRelationshipChange = (otherGuid != 0 && result.relationship_delta.is_object());
+            const float affinityChange = hasRelationshipChange
+                ? result.relationship_delta.value("affinity_change", 0.0f) : 0.0f;
+            const std::string affinityReason = hasRelationshipChange
+                ? result.relationship_delta.value("reason", std::string()) : std::string();
+
+            // A gesture is part of how the line was said, so it is independent of
+            // any action and goes through the queue on its own. ResolveEmote also
+            // enforces the cooldown, so an over-eager model changes nothing.
+            if (!result.emote.empty() && !otherIsBot && otherGuid != 0)
+            {
+                if (uint32_t emoteId = ResolveEmote(botGuid, result.emote))
+                {
+                    BotAction gesture;
+                    gesture.kind       = ActionKind::Emote;
+                    gesture.botGuid    = botGuid;
+                    gesture.targetGuid = otherGuid;
+                    gesture.emoteId    = emoteId;
+                    SubmitBotAction(gesture);
+                }
             }
 
             // Say it first, then do it. That is the order a person would use, and it
             // means the words are already out if the action needs a retry or two.
+            bool committed = false;
+
             if (result.action.is_object())
             {
                 BotAction action;
@@ -273,13 +306,34 @@ bool RequestBotTurn(TurnRequest& request, bool forced)
 
                 if (action.kind != ActionKind::None && ValidateAction(menu, action))
                 {
+                    // The memories ride with the action rather than being written
+                    // now, because a bot that says "sure, here's a heal" and then
+                    // fails should not be left remembering a heal it never cast.
+                    action.memories              = std::move(memories);
+                    action.otherIsBot            = otherIsBot;
+                    action.hasRelationshipChange = hasRelationshipChange;
+                    action.affinityChange        = affinityChange;
+                    action.affinityReason        = affinityReason;
+
                     SubmitBotAction(action);
+                    memories.clear();
+                    committed = true;
                 }
                 else if (g_DebugEnabled && action.kind != ActionKind::None)
                 {
                     LOG_INFO("server.loading",
                              "[BotMinds] Dropped an action {} tried to take that was not on offer.", botName);
                 }
+            }
+
+            // No action to wait on, so nothing was promised that could fall through.
+            if (!committed)
+            {
+                for (const PendingMemory& memory : memories)
+                    AddMemory(botGuid, otherGuid, memory.kind, memory.text, memory.salience);
+
+                if (hasRelationshipChange)
+                    ApplyRelationshipDelta(botGuid, otherGuid, otherIsBot, affinityChange, affinityReason);
             }
 
             // A bot speaking can draw a reply from another bot, up to the chain limit.

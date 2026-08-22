@@ -27,7 +27,8 @@ enum class ActionKind : uint8_t
     Heal,
     GiveGold,
     Follow,
-    Stay
+    Stay,
+    Emote        // queued like the rest, because emoting goes through the session
 };
 
 // What a bot may do for one person on one turn.
@@ -56,6 +57,16 @@ struct ActionMenu
     }
 };
 
+// Something the bot wants to remember, held back until the action it describes
+// has actually happened. A bot that says "sure, here's a heal" and then fails
+// should not be left remembering a heal it never cast.
+struct PendingMemory
+{
+    std::string kind;
+    std::string text;
+    float       salience = 0.5f;
+};
+
 // A decided action, carrying only values so it can cross a thread boundary.
 struct BotAction
 {
@@ -64,6 +75,7 @@ struct BotAction
     uint64_t    targetGuid = 0;
     std::string spellName;         // Buff / Heal
     std::string command;           // Follow / Stay
+    uint32_t    emoteId = 0;       // Emote
     uint32_t    copper = 0;        // GiveGold
     bool        viaMail = false;   // GiveGold delivery
     bool        promised = false;  // the bot said it would; worth apologising if it cannot
@@ -72,10 +84,22 @@ struct BotAction
     bool        mentionedPost = false; // the spoken line already told them to check their mail
     uint8_t     attempt = 0;
     uint32_t    readyInMs = 0;     // retry backoff
+
+    // Committed only once the action succeeds, and dropped if it never does.
+    std::vector<PendingMemory> memories;
+    bool                       otherIsBot = false;
+    bool                       hasRelationshipChange = false;
+    float                      affinityChange = 0.0f;
+    std::string                affinityReason;
 };
 
 // Map the tool's kind string onto the enum. Unknown names become None.
 ActionKind ActionKindFromName(const std::string& name);
+
+// Resolve an emote name the model chose ("wave", "laugh") to its text emote id,
+// or 0 if it is not one we allow. Also returns 0 while the bot is inside its
+// emote cooldown, so restraint does not depend on the model showing any.
+uint32_t ResolveEmote(uint64_t botGuid, const std::string& name);
 
 // What this bot can do for `other` right now. Empty when there is nothing to offer.
 // `unprompted` means the bot is considering volunteering rather than answering,
