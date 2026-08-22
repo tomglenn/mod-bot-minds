@@ -31,6 +31,7 @@ struct TurnRequest
     std::string trigger;              // the message being answered, or the situation
     std::string channelName;          // only for ChatScope::Channel
     uint32_t    chainDepth = 0;       // bot-to-bot hops so far; 0 for anything a human started
+    bool        namedDirectly = false; // singled out by name, rather than picked to answer
 
     // What this bot can really do for `other` this turn. Filled by BuildTurnPrompt
     // and kept so the same menu validates whatever the model chooses.

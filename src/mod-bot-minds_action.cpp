@@ -723,11 +723,36 @@ namespace
                 // (PlayerbotAI.cpp:969), so synthesised commands have to carry it.
                 const std::string command = sPlayerbotAIConfig.commandPrefix + action.command;
 
-                botAI->HandleCommand(CHAT_MSG_WHISPER, command, target);
+                // Telling the party to hold up means the party, not whichever bot
+                // happened to answer. One of them speaks, all of them obey.
+                uint32_t told = 0;
+                if (action.wholeGroup && target->GetGroup())
+                {
+                    for (GroupReference* ref = target->GetGroup()->GetFirstMember(); ref; ref = ref->next())
+                    {
+                        Player* member = ref->GetSource();
+                        if (!member || member == target)
+                            continue;
+
+                        PlayerbotAI* memberAI = BotAIFor(member);
+                        if (!memberAI || memberAI->GetMaster() != target)
+                            continue;   // not theirs to order about
+
+                        memberAI->HandleCommand(CHAT_MSG_WHISPER, command, target);
+                        ++told;
+                    }
+                }
+
+                if (told == 0)
+                {
+                    botAI->HandleCommand(CHAT_MSG_WHISPER, command, target);
+                    told = 1;
+                }
+
                 ++g_ActionsPerformed;
                 if (g_DebugEnabled)
-                    LOG_INFO("server.loading", "[BotMinds] {} sent '{}' on behalf of {}.",
-                             bot->GetName(), command, target->GetName());
+                    LOG_INFO("server.loading", "[BotMinds] '{}' sent to {} bot(s) on behalf of {}.",
+                             command, told, target->GetName());
                 return Outcome::Succeeded;
             }
 

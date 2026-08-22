@@ -79,6 +79,7 @@ struct BotAction
     uint32_t    copper = 0;        // GiveGold
     bool        viaMail = false;   // GiveGold delivery
     bool        promised = false;  // the bot said it would; worth apologising if it cannot
+    bool        wholeGroup = false; // an order to the party, not to one bot
     bool        tradeStarted = false;  // gold: the window is open, the coin still needs putting in
     bool        goldPlaced = false;    // gold: the coin is in, the bot still needs to accept
     bool        mentionedPost = false; // the spoken line already told them to check their mail

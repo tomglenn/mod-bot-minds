@@ -16,6 +16,7 @@
 #include <cctype>
 #include <ctime>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace
@@ -49,22 +50,92 @@ namespace
         return false;
     }
 
-    // Position of a bot's name in the message, or npos. Word-bounded so "Al" does
-    // not match "always".
-    size_t NameMentionPos(const std::string& loweredText, const std::string& botName)
+    // Position of `needle` as a whole word in `loweredText`, or npos. Word-bounded
+    // so "Al" does not match "always".
+    size_t WholeWordPos(const std::string& loweredText, const std::string& needle)
     {
-        std::string loweredName = ToLower(botName);
+        if (needle.empty())
+            return std::string::npos;
+
         size_t pos = 0;
-        while ((pos = loweredText.find(loweredName, pos)) != std::string::npos)
+        while ((pos = loweredText.find(needle, pos)) != std::string::npos)
         {
             bool startsClean = (pos == 0) || !std::isalnum(static_cast<unsigned char>(loweredText[pos - 1]));
-            size_t end = pos + loweredName.size();
+            size_t end = pos + needle.size();
             bool endsClean = (end >= loweredText.size()) || !std::isalnum(static_cast<unsigned char>(loweredText[end]));
             if (startsClean && endsClean)
                 return pos;
             ++pos;
         }
         return std::string::npos;
+    }
+
+    // Short words that are far more likely to be English than somebody shortening
+    // a name. Without this a bot called Andrea answers every sentence containing
+    // "and", and one called Sual answers "sure".
+    bool TooCommonForANickname(const std::string& word)
+    {
+        static const std::unordered_set<std::string> common = {
+            "the", "and", "you", "for", "are", "was", "his", "her", "its", "our", "one", "all",
+            "out", "get", "got", "any", "now", "way", "day", "let", "put", "say", "see", "who",
+            "why", "how", "hey", "yes", "not", "but", "can", "did", "has", "had", "him", "she",
+            "they", "them", "this", "that", "with", "from", "just", "what", "when", "sure",
+            "mate", "then", "than", "here", "there", "your", "mine", "some", "want", "need",
+            "give", "take", "come", "wait", "stay", "gold", "help", "good", "nice", "well"
+        };
+
+        return common.count(word) != 0;
+    }
+
+    // Where a bot's name appears, allowing the shortenings people actually use in
+    // chat: "Hey Gas, how's it going?" is aimed at Gascard.
+    //
+    // A nickname only counts when it is a prefix of the name, at least three
+    // characters, and not a common English word. Ambiguity is resolved by the
+    // caller, which ignores a nickname matching more than one bot present.
+    size_t NameMentionPos(const std::string& loweredText, const std::string& botName, bool& viaNickname)
+    {
+        viaNickname = false;
+
+        const std::string loweredName = ToLower(botName);
+
+        size_t pos = WholeWordPos(loweredText, loweredName);
+        if (pos != std::string::npos)
+            return pos;
+
+        // Walk the words of the message rather than every prefix of the name: a
+        // message has few words, and this way the longest sensible match wins.
+        size_t best = std::string::npos;
+        size_t start = 0;
+
+        while (start < loweredText.size())
+        {
+            while (start < loweredText.size() && !std::isalnum(static_cast<unsigned char>(loweredText[start])))
+                ++start;
+
+            size_t end = start;
+            while (end < loweredText.size() && std::isalnum(static_cast<unsigned char>(loweredText[end])))
+                ++end;
+
+            if (end == start)
+                break;
+
+            const std::string word = loweredText.substr(start, end - start);
+            if (word.size() >= 3 && word.size() < loweredName.size()
+                && loweredName.compare(0, word.size(), word) == 0
+                && !TooCommonForANickname(word))
+            {
+                if (start < best)
+                {
+                    best = start;
+                    viaNickname = true;
+                }
+            }
+
+            start = end;
+        }
+
+        return best;
     }
 
     // Is this aimed at the room rather than at one person? Greetings and plural
@@ -197,7 +268,7 @@ namespace
 
     bool Dispatch(Player* bot, Player* other, TurnKind kind, const ScopeKey& key,
                   const std::string& trigger, const std::string& channelName,
-                  uint32_t chainDepth, bool forced)
+                  uint32_t chainDepth, bool forced, bool namedDirectly = false)
     {
         TurnRequest request;
         request.bot         = bot;
@@ -206,7 +277,8 @@ namespace
         request.key         = key;
         request.trigger     = trigger;
         request.channelName = channelName;
-        request.chainDepth  = chainDepth;
+        request.chainDepth    = chainDepth;
+        request.namedDirectly = namedDirectly;
 
         return RequestBotTurn(request, forced);
     }
@@ -234,25 +306,52 @@ void OnPlayerLine(Player* speaker, const std::string& text, ChatScope scope, con
 
     const std::string lowered = ToLower(text);
 
-    // 1. Named directly: that bot answers, and only that bot.
-    Player* mentioned    = nullptr;
-    size_t  mentionedPos = std::string::npos;
+    // 1. Named directly: that bot answers, and only that bot. A full name always
+    //    wins over somebody else's shortening, and an ambiguous shortening counts
+    //    for nobody, since "Hey Gas" among two bots starting Gas names neither.
+    Player* mentioned      = nullptr;
+    size_t  mentionedPos   = std::string::npos;
+    bool    mentionedShort = false;
+    uint32_t shortMatches  = 0;
+
     for (Player* bot : candidates)
     {
-        size_t pos = NameMentionPos(lowered, bot->GetName());
-        if (pos < mentionedPos)
+        bool viaNickname = false;
+        size_t pos = NameMentionPos(lowered, bot->GetName(), viaNickname);
+        if (pos == std::string::npos)
+            continue;
+
+        if (viaNickname)
+            ++shortMatches;
+
+        // Prefer a full name, then whichever came first in the sentence.
+        const bool better = (mentioned == nullptr)
+            || (mentionedShort && !viaNickname)
+            || (mentionedShort == viaNickname && pos < mentionedPos);
+
+        if (better)
         {
-            mentioned    = bot;
-            mentionedPos = pos;
+            mentioned      = bot;
+            mentionedPos   = pos;
+            mentionedShort = viaNickname;
         }
+    }
+
+    if (mentioned && mentionedShort && shortMatches > 1)
+    {
+        if (g_DebugEnabled)
+            LOG_INFO("server.loading", "[BotMinds] A shortened name from {} fitted {} bots, so nobody claimed it.",
+                     speaker->GetName(), shortMatches);
+        mentioned = nullptr;
     }
 
     if (mentioned)
     {
         if (g_DebugEnabled)
-            LOG_INFO("server.loading", "[BotMinds] {} was named by {}; answering directly.",
-                     mentioned->GetName(), speaker->GetName());
-        Dispatch(mentioned, speaker, TurnKind::DirectReply, key, text, channelName, 0, true);
+            LOG_INFO("server.loading", "[BotMinds] {} was named by {}{}; answering directly.",
+                     mentioned->GetName(), speaker->GetName(), mentionedShort ? " (shortened)" : "");
+        Dispatch(mentioned, speaker, TurnKind::DirectReply, key, text, channelName, 0, true,
+                 /*namedDirectly=*/true);
         return;
     }
 

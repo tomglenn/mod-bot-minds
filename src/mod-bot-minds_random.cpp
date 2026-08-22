@@ -179,18 +179,31 @@ namespace
         return observations;
     }
 
-    const char* PickAngle()
+    // A bot in somebody's group does not decide where it goes, so "say what you are
+    // going to do next" invites it to announce an errand it will never run. Its own
+    // words then contradict the fact that it is stood there following you.
+    const char* PickAngle(bool underOrders)
     {
-        static const char* angles[] = {
+        static const char* anyone[] = {
             "complain about it",
             "make a dry observation",
             "ask the others what they think",
-            "say what you are going to do next",
             "mention how the levelling is going",
             "say something a bit sarcastic"
         };
 
-        return angles[urand(0, sizeof(angles) / sizeof(angles[0]) - 1)];
+        static const char* freeToRoam[] = {
+            "say what you are going to do next"
+        };
+
+        // One combined range, so a free bot keeps the fuller set of angles.
+        const size_t extra = underOrders ? 0 : sizeof(freeToRoam) / sizeof(freeToRoam[0]);
+        const size_t total = sizeof(anyone) / sizeof(anyone[0]) + extra;
+        const size_t pick  = urand(0, total - 1);
+
+        return pick < sizeof(anyone) / sizeof(anyone[0])
+            ? anyone[pick]
+            : freeToRoam[pick - sizeof(anyone) / sizeof(anyone[0])];
     }
 }
 
@@ -279,7 +292,7 @@ void BotMindsAmbientChatter::OnUpdate(uint32 diff)
             else
                 situation = observations[urand(0, observations.size() - 1)];
 
-            situation = SafeFormat("{}. Take this angle: {}.", situation, PickAngle());
+            situation = SafeFormat("{}. Take this angle: {}.", situation, PickAngle(groupAudience));
         }
 
         // Talk to the group when a person is in it, otherwise say it out loud.

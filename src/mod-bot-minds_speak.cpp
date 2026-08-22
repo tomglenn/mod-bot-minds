@@ -147,6 +147,7 @@ bool RequestBotTurn(TurnRequest& request, bool forced)
     const uint32_t    chainDepth    = request.chainDepth;
     const TurnKind    kind          = request.kind;
     const ActionMenu  menu          = request.menu;
+    const bool        namedDirectly = request.namedDirectly;
 
     BotMindsGovernor::OnSubmit(botGuid);
 
@@ -303,6 +304,12 @@ bool RequestBotTurn(TurnRequest& request, bool forced)
                         break;
                     }
                 }
+
+                // "stay here" in a party is aimed at the party. Only a bot singled
+                // out by name gets to be the only one who obeys.
+                action.wholeGroup = !namedDirectly
+                    && key.scope == ChatScope::Party
+                    && (action.kind == ActionKind::Follow || action.kind == ActionKind::Stay);
 
                 if (action.kind != ActionKind::None && ValidateAction(menu, action))
                 {

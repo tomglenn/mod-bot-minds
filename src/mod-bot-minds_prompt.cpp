@@ -354,9 +354,24 @@ namespace
                     other);
 
             case TurnKind::Ambient:
-                return "Nobody is talking to you. Make one short unprompted remark of your own about the "
-                       "situation below, the way a player idly types in chat. Do not greet anyone and do not "
-                       "ask how anyone is doing. Set should_reply to true.";
+            {
+                std::string instruction =
+                    "Nobody is talking to you. Make one short unprompted remark of your own about the "
+                    "situation below, the way a player idly types in chat. Do not greet anyone and do not "
+                    "ask how anyone is doing. Set should_reply to true.";
+
+                // Whatever a bot says it is about to do had better be true, and a bot
+                // travelling with someone is not off running errands of its own.
+                if (request.bot && request.bot->GetGroup())
+                {
+                    instruction += " You are travelling in someone's group, so you are not going anywhere "
+                                   "on your own. Do not say you are off to hand in a quest, visit a vendor "
+                                   "or head somewhere, because you are not, and they can see you standing "
+                                   "there. Remark on what is around you or how it is going instead.";
+                }
+
+                return instruction;
+            }
 
             case TurnKind::Event:
                 return "Something just happened near you, described below. React in a few words if it is worth "
