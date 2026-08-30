@@ -40,7 +40,11 @@ static const json& BotTurnSchema()
             }},
             {"memory_additions", {
                 {"type", "array"},
-                {"description", "Anything from this exchange worth remembering later."},
+                {"description", "Anything from this exchange worth remembering later. Durable "
+                                "things only: who someone is, what they did, how it went. Not "
+                                "passing state such as which buffs they have up, their health, "
+                                "where they are or who is with them, which is wrong within "
+                                "minutes of writing it down."},
                 {"items", {
                     {"type", "object"},
                     {"properties", {

@@ -358,7 +358,7 @@ ActionMenu BuildActionMenu(Player* bot, Player* other, bool unprompted)
         }
         else if (rel.lastGiftAt != 0 && (now - rel.lastGiftAt) < g_GiftCooldownSec)
         {
-            menu.goldRefusal = SafeFormat("you already gave {} something recently and would not do it again so soon",
+            menu.goldRefusal = SafeFormat("you already gave {} money recently and would not do it again so soon",
                                           other->GetName());
         }
         else
@@ -408,11 +408,12 @@ std::string DescribeActionMenu(const ActionMenu& menu, const std::string& otherN
 
     if (!menu.alreadyHave.empty())
     {
-        out << "- They already have: ";
+        out << "- Recast on request: ";
         for (size_t i = 0; i < menu.alreadyHave.size(); ++i)
             out << (i ? "; " : "") << menu.alreadyHave[i];
-        out << ". Do not push these on them unasked, but recast one happily if they ask "
-               "for a top-up or it is nearly gone.\n";
+        out << ". These are up already, so do not push them unasked. If they do ask for one, "
+               "cast it again and set the action: a buff they already have is still yours to "
+               "recast, and telling them they are fine instead is refusing them.\n";
     }
 
     if (menu.maxCopper > 0)
@@ -441,7 +442,10 @@ std::string DescribeActionMenu(const ActionMenu& menu, const std::string& otherN
         out << "- They are not in your group, so you cannot take orders like following or staying put. "
                "If they ask, say you would need to be grouped up first.\n";
 
-    out << "Only offer what is on this list. If they ask for anything else, say no in your own words.";
+    out << "Only offer what is on this list. If they ask for anything else, say no in your own "
+           "words, and keep the reason true: use a reason given above if there is one, otherwise "
+           "just say you cannot. Never invent an excuse, and never claim someone else already did "
+           "it for them.";
 
     return out.str();
 }
